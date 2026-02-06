@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import User, { UserRole } from "../models/User";
+import User, { UserRole } from "../models/User.js";
 
 // @desc    Get all users (with optional role filter)
 // @route   GET /api/users

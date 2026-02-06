@@ -1,20 +1,34 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { login, clearError } from "../../store/slices/authSlice";
 import img from "../../assets/logo_main.png";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const { loading, error, isAuthenticated } = useAppSelector(
+    (state) => state.auth,
+  );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard");
+    }
+  }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    // Clear error when component unmounts
+    return () => {
+      dispatch(clearError());
+    };
+  }, [dispatch]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    setTimeout(() => {
-      console.log({ email, password });
-      setLoading(false);
-    }, 1200);
+    dispatch(login({ email, password }));
   };
 
   const handleGoogleLogin = () => {
@@ -37,14 +51,6 @@ export default function LoginForm() {
               <img src={img} alt="SSRC Logo" className="h-18 w-auto" />
             </a>
           </div>
-          {/* <a
-            href="https://ssrc.sunway.edu.np"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-neutral-300 transition hover:text-white"
-          >
-            
-          </a> */}
         </div>
 
         {/* Content */}
@@ -55,9 +61,16 @@ export default function LoginForm() {
               SSRC Sports Club
             </h1>
             <p className="text-sm text-neutral-400">
-              PLease login to continue.
+              Please login to continue.
             </p>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+              {error}
+            </div>
+          )}
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -116,7 +129,7 @@ export default function LoginForm() {
 
           {/* Footer */}
           <p className="mt-6 text-center text-sm text-neutral-400">
-            Don’t have an account?{" "}
+            Don't have an account?{" "}
             <Link
               to="/signup"
               className="font-medium text-white hover:underline"

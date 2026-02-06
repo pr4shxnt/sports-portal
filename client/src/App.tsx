@@ -14,11 +14,17 @@ import Profile from "./components/auth_client/pages/Profile";
 import ReportBug from "./components/auth_client/pages/ReportBug";
 import Feedback from "./components/auth_client/pages/Feedback";
 import Settings from "./components/auth_client/pages/Settings";
+import Forms from "./pages/Forms";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const router = createBrowserRouter([
   {
     path: "/dashboard",
-    element: <RootComp />,
+    element: (
+      <ProtectedRoute>
+        <RootComp />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,
@@ -39,6 +45,10 @@ const router = createBrowserRouter([
       {
         path: "profile",
         element: <Profile />,
+      },
+      {
+        path: "forms",
+        element: <Forms />,
       },
       {
         path: "bug-report",
@@ -66,7 +76,7 @@ const router = createBrowserRouter([
     path: "/",
     children: [
       {
-        path: "/",
+        path: "/events",
         element: <Home />,
       },
       {
@@ -77,11 +87,25 @@ const router = createBrowserRouter([
   },
 ]);
 
+import { useEffect } from "react";
+import { useAppDispatch } from "./store/hooks";
+import { fetchProfile } from "./store/slices/authSlice";
+
+const AuthInitializer = ({ children }: { children: React.ReactNode }) => {
+  const dispatch = useAppDispatch();
+  useEffect(() => {
+    dispatch(fetchProfile());
+  }, [dispatch]);
+  return <>{children}</>;
+};
+
 export default function App() {
   return (
     <>
       <Provider store={store}>
-        <RouterProvider router={router} />
+        <AuthInitializer>
+          <RouterProvider router={router} />
+        </AuthInitializer>
       </Provider>
     </>
   );

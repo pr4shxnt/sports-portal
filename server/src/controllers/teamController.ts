@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import Team from "../models/Team";
-import User, { UserRole } from "../models/User";
+import Team from "../models/Team.js";
+import User, { UserRole } from "../models/User.js";
 
 // @desc    Get all teams
 // @route   GET /api/teams

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import Announcement from "../models/Announcement";
+import Announcement from "../models/Announcement.js";
 
 // @desc    Get all announcements
 // @route   GET /api/announcements

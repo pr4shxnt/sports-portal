@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import User, { IUser } from "../models/User";
+import User, { IUser } from "../models/User.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
@@ -34,12 +34,22 @@ export const registerUser = async (req: Request, res: Response) => {
     });
 
     if (user) {
+      const token = generateToken(
+        (user._id as mongoose.Types.ObjectId).toString(),
+      );
+
+      res.cookie("session", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+
       res.status(201).json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken((user._id as mongoose.Types.ObjectId).toString()),
       });
     } else {
       res.status(400).json({ message: "Invalid user data" });
@@ -56,21 +66,40 @@ export const loginUser = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   try {
+    console.log(`[Login] Attempt for email: ${email}`);
     const user = await User.findOne({ email });
 
-    if (user && (await bcrypt.compare(password, user.password as string))) {
+    if (!user) {
+      console.log(`[Login] User not found for email: ${email}`);
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password as string);
+    console.log(`[Login] Password match for ${email}: ${isMatch}`);
+
+    if (user && isMatch) {
       if (user.isBanned) {
         return res
           .status(403)
           .json({ message: "Your account has been banned." });
       }
 
+      const token = generateToken(
+        (user._id as mongoose.Types.ObjectId).toString(),
+      );
+
+      res.cookie("session", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+
       res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken((user._id as mongoose.Types.ObjectId).toString()),
       });
     } else {
       res.status(401).json({ message: "Invalid email or password" });
@@ -78,6 +107,14 @@ export const loginUser = async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
   }
+};
+
+export const logoutUser = (req: Request, res: Response) => {
+  res.cookie("session", "", {
+    httpOnly: true,
+    expires: new Date(0),
+  });
+  res.status(200).json({ message: "Logged out" });
 };
 
 // @desc    Get user profile

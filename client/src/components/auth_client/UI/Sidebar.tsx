@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "../../../store/hooks";
+import { logout } from "../../../store/slices/authSlice";
 import logo from "../../../assets/logo_main.png";
 
 // Icons
@@ -229,23 +231,217 @@ interface SidebarProps {
 export function Sidebar({ className }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.auth);
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
-  const navItems = [
-    { label: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
-    { label: "Events", icon: CalendarIcon, href: "/dashboard/events" },
-    {
-      label: "Request Equipments",
-      icon: DumbbellIcon,
-      href: "/dashboard/equipments",
-    },
-    { label: "Team", icon: UsersIcon, href: "/dashboard/team" },
-    { label: "Profile", icon: UserIcon, href: "/dashboard/profile" },
-    { label: "Report Bug", icon: BugIcon, href: "/dashboard/bug-report" },
-    { label: "Feedback", icon: MessageSquareIcon, href: "/dashboard/feedback" },
-    { label: "Settings", icon: SettingsIcon, href: "/dashboard/settings" },
-  ];
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate("/login");
+  };
+
+  // Dynamic navigation based on exact RBAC requirements
+  const getNavItems = () => {
+    const userRole = user?.role || "user";
+
+    // USER (Members)
+    if (userRole === "user") {
+      return [
+        { label: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
+        {
+          label: "Request Equipments",
+          icon: DumbbellIcon,
+          href: "/dashboard/equipments",
+        },
+        { label: "My Team", icon: UsersIcon, href: "/dashboard/team" },
+        {
+          label: "Registered Events",
+          icon: CalendarIcon,
+          href: "/dashboard/events",
+        },
+        { label: "Report Bug", icon: BugIcon, href: "/dashboard/bug-report" },
+        {
+          label: "Feedback",
+          icon: MessageSquareIcon,
+          href: "/dashboard/feedback",
+        },
+        { label: "Profile", icon: UserIcon, href: "/dashboard/profile" },
+        { label: "Settings", icon: SettingsIcon, href: "/dashboard/settings" },
+      ];
+    }
+
+    // MODERATOR (General Members)
+    if (userRole === "moderator") {
+      return [
+        { label: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
+        {
+          label: "Request Equipment",
+          icon: DumbbellIcon,
+          href: "/dashboard/equipments",
+        },
+        {
+          label: "View Responsibilities",
+          icon: DumbbellIcon,
+          href: "/dashboard/responsibilities",
+        },
+        { label: "My Team", icon: UsersIcon, href: "/dashboard/team" },
+        {
+          label: "My Upcoming Events",
+          icon: CalendarIcon,
+          href: "/dashboard/my-events",
+        },
+        {
+          label: "All Events",
+          icon: CalendarIcon,
+          href: "/dashboard/all-events",
+        },
+        {
+          label: "Registered Events",
+          icon: CalendarIcon,
+          href: "/dashboard/events",
+        },
+        {
+          label: "Manage Members",
+          icon: UsersIcon,
+          href: "/dashboard/members",
+        },
+        {
+          label: "Update Forms",
+          icon: SettingsIcon,
+          href: "/dashboard/forms",
+        },
+        {
+          label: "Announcements",
+          icon: MessageSquareIcon,
+          href: "/dashboard/announcements",
+        },
+        { label: "Report Bug", icon: BugIcon, href: "/dashboard/bug-report" },
+        {
+          label: "Feedback",
+          icon: MessageSquareIcon,
+          href: "/dashboard/feedback",
+        },
+        { label: "Profile", icon: UserIcon, href: "/dashboard/profile" },
+        { label: "Settings", icon: SettingsIcon, href: "/dashboard/settings" },
+      ];
+    }
+
+    // SUPERUSER (College Staff)
+    if (userRole === "superuser") {
+      return [
+        { label: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
+        {
+          label: "Request Equipment",
+          icon: DumbbellIcon,
+          href: "/dashboard/equipments",
+        },
+        {
+          label: "View Responsibilities",
+          icon: DumbbellIcon,
+          href: "/dashboard/responsibilities",
+        },
+        {
+          label: "Equipment Inventory",
+          icon: DumbbellIcon,
+          href: "/dashboard/inventory",
+        },
+        {
+          label: "All Events",
+          icon: CalendarIcon,
+          href: "/dashboard/all-events",
+        },
+        {
+          label: "View Members",
+          icon: UsersIcon,
+          href: "/dashboard/members",
+        },
+        {
+          label: "Announcements",
+          icon: MessageSquareIcon,
+          href: "/dashboard/announcements",
+        },
+        { label: "Report Bug", icon: BugIcon, href: "/dashboard/bug-report" },
+        {
+          label: "Feedback",
+          icon: MessageSquareIcon,
+          href: "/dashboard/feedback",
+        },
+        { label: "Profile", icon: UserIcon, href: "/dashboard/profile" },
+        { label: "Settings", icon: SettingsIcon, href: "/dashboard/settings" },
+      ];
+    }
+
+    // ADMIN (Club Executives)
+    if (userRole === "admin") {
+      return [
+        { label: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
+        {
+          label: "Request Equipment",
+          icon: DumbbellIcon,
+          href: "/dashboard/equipments",
+        },
+        {
+          label: "View Responsibilities",
+          icon: DumbbellIcon,
+          href: "/dashboard/responsibilities",
+        },
+        {
+          label: "Equipment Inventory",
+          icon: DumbbellIcon,
+          href: "/dashboard/inventory",
+        },
+        { label: "My Team", icon: UsersIcon, href: "/dashboard/team" },
+        {
+          label: "All Teams",
+          icon: UsersIcon,
+          href: "/dashboard/all-teams",
+        },
+        {
+          label: "My Upcoming Events",
+          icon: CalendarIcon,
+          href: "/dashboard/my-events",
+        },
+        {
+          label: "Manage Forms",
+          icon: SettingsIcon,
+          href: "/dashboard/forms",
+        },
+        {
+          label: "All Events",
+          icon: CalendarIcon,
+          href: "/dashboard/all-events",
+        },
+        {
+          label: "View Members",
+          icon: UsersIcon,
+          href: "/dashboard/members",
+        },
+        {
+          label: "Announcements",
+          icon: MessageSquareIcon,
+          href: "/dashboard/announcements",
+        },
+        { label: "Report Bug", icon: BugIcon, href: "/dashboard/bug-report" },
+        {
+          label: "Feedback",
+          icon: MessageSquareIcon,
+          href: "/dashboard/feedback",
+        },
+        { label: "Profile", icon: UserIcon, href: "/dashboard/profile" },
+        { label: "Settings", icon: SettingsIcon, href: "/dashboard/settings" },
+      ];
+    }
+
+    // Default fallback
+    return [
+      { label: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
+      { label: "Profile", icon: UserIcon, href: "/dashboard/profile" },
+    ];
+  };
+
+  const navItems = getNavItems();
 
   return (
     <>
@@ -302,6 +498,7 @@ export function Sidebar({ className }: SidebarProps) {
                 <Link
                   key={item.label}
                   to={item.href}
+                  onClick={() => setIsOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors group ${
                     isActive
                       ? "bg-[#DD1D25] text-white"
@@ -324,21 +521,40 @@ export function Sidebar({ className }: SidebarProps) {
           {/* Footer / User Profile */}
           <div className="p-4 border-t border-zinc-200 dark:border-zinc-800">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-sm font-medium text-zinc-600 dark:text-zinc-300">
-                JD
+              <div className="w-10 h-10 rounded-full bg-[#DD1D25] text-white flex items-center justify-center font-medium shadow-sm">
+                {user?.name?.charAt(0).toUpperCase() || "U"}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50 truncate">
-                  John Doe
+                  {user?.name || "User"}
                 </p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
-                  john@example.com
-                </p>
+                <div className="flex flex-col">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                    {user?.email || ""}
+                  </p>
+                  <span
+                    className={`mt-1 inline-flex w-fit items-center px-1.5 py-0.5 rounded text-[10px] font-medium capitalize border ${
+                      user?.role === "admin"
+                        ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/30"
+                        : user?.role === "moderator"
+                          ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30"
+                          : user?.role === "superuser"
+                            ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-900/30"
+                            : "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700"
+                    }`}
+                  >
+                    {user?.role || "user"}
+                  </span>
+                </div>
               </div>
-              <button className="p-1.5 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors">
-                <LogOutIcon className="w-4 h-4" />
-              </button>
             </div>
+            <button
+              onClick={handleLogout}
+              className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors border border-zinc-200 dark:border-zinc-800"
+            >
+              <LogOutIcon className="w-4 h-4" />
+              <span>Sign out</span>
+            </button>
           </div>
         </div>
       </aside>

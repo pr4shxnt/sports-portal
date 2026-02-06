@@ -7,10 +7,9 @@ import {
   requestEquipment,
   getResponsibilities,
   updateResponsibilityStatus,
-  transferEquipment,
-} from "../controllers/equipmentController";
-import { protect, authorize } from "../middlewares/authMiddleware";
-import { UserRole } from "../models/User";
+} from "../controllers/equipmentController.js";
+import { protect, authorize } from "../middlewares/authMiddleware.js";
+import { UserRole } from "../models/User.js";
 
 const router = express.Router();
 
@@ -36,7 +35,5 @@ router.put(
   authorize(UserRole.ADMIN, UserRole.SUPERUSER, UserRole.MODERATOR),
   updateResponsibilityStatus,
 );
-
-router.post("/transfer/:id", transferEquipment);
 
 export default router;

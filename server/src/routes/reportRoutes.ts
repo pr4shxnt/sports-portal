@@ -3,9 +3,9 @@ import {
   submitReport,
   getReports,
   updateReportStatus,
-} from "../controllers/reportController";
-import { protect, authorize } from "../middlewares/authMiddleware";
-import { UserRole } from "../models/User";
+} from "../controllers/reportController.js";
+import { protect, authorize } from "../middlewares/authMiddleware.js";
+import { UserRole } from "../models/User.js";
 
 const router = express.Router();
 

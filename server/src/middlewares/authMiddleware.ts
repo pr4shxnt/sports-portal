@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import User, { IUser, UserRole } from "../models/User";
+import User, { IUser, UserRole } from "../models/User.js";
 
 interface DecodedToken {
   id: string;
@@ -15,12 +15,11 @@ export const protect = async (
 ) => {
   let token;
 
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
+  // Check valid token in cookies
+  token = req.cookies.session;
+
+  if (token) {
     try {
-      token = req.headers.authorization.split(" ")[1];
       const decoded = jwt.verify(
         token,
         process.env.JWT_SECRET as string,
@@ -32,9 +31,7 @@ export const protect = async (
       console.error(error);
       res.status(401).json({ message: "Not authorized, token failed" });
     }
-  }
-
-  if (!token) {
+  } else {
     res.status(401).json({ message: "Not authorized, no token" });
   }
 };

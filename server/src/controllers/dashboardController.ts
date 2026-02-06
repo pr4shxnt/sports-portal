@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import User, { UserRole } from "../models/User";
-import Equipment from "../models/Equipment";
-import Event from "../models/Event";
-import Team from "../models/Team";
-import Responsibility, { RequestStatus } from "../models/Responsibility";
-import Announcement from "../models/Announcement";
+import User, { UserRole } from "../models/User.js";
+import Equipment from "../models/Equipment.js";
+import Event from "../models/Event.js";
+import Team from "../models/Team.js";
+import Responsibility, { RequestStatus } from "../models/Responsibility.js";
+import Announcement from "../models/Announcement.js";
 
 // @desc    Get dashboard summary based on role
 // @route   GET /api/dashboard/summary

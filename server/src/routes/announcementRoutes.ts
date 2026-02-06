@@ -3,9 +3,9 @@ import {
   getAnnouncements,
   createAnnouncement,
   deleteAnnouncement,
-} from "../controllers/announcementController";
-import { protect, authorize } from "../middlewares/authMiddleware";
-import { UserRole } from "../models/User";
+} from "../controllers/announcementController.js";
+import { protect, authorize } from "../middlewares/authMiddleware.js";
+import { UserRole } from "../models/User.js";
 
 const router = express.Router();
 

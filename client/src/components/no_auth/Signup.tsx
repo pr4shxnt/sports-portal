@@ -1,64 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { register, clearError } from "../../store/slices/authSlice";
 import img from "../../assets/logo_main.png";
 
 export default function SignupForm() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { loading, error, isAuthenticated } = useAppSelector(
+    (state) => state.auth,
+  );
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [batch, setBatch] = useState("");
-  const [section, setSection] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [validationError, setValidationError] = useState("");
 
-  // OTP Modal State
-  const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [otpError, setOtpError] = useState("");
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard");
+    }
+  }, [isAuthenticated, navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    return () => {
+      dispatch(clearError());
+    };
+  }, [dispatch]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError("");
+
     if (password !== confirmPassword) {
-      alert("Passwords do not match");
+      setValidationError("Passwords do not match");
       return;
     }
     if (!termsAccepted) {
-      alert("Please accept the terms and conditions");
+      setValidationError("Please accept the terms and conditions");
       return;
     }
 
-    // Show OTP Modal instead of immediate submit
-    setShowOtpModal(true);
-    // Simulate sending OTP
-    console.log("Mock OTP sent: 123456");
-  };
-
-  const handleVerifyOtp = () => {
-    if (otp === "123456") {
-      setLoading(true);
-      setOtpError("");
-
-      // Simulate API call for verification and signup
-      setTimeout(() => {
-        console.log("Signup Successful:", {
-          name,
-          email,
-          phone,
-          batch,
-          section,
-          password,
-        });
-        setLoading(false);
-        setShowOtpModal(false);
-        alert("Account created successfully!");
-        navigate("/login");
-      }, 1500);
-    } else {
-      setOtpError("Invalid OTP. Please try again.");
-    }
+    dispatch(register({ name, email, password }));
   };
 
   const handleGoogleLogin = () => {
@@ -95,6 +80,13 @@ export default function SignupForm() {
             </p>
           </div>
 
+          {/* Error Message */}
+          {(error || validationError) && (
+            <div className="mb-4 p-3 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+              {error || validationError}
+            </div>
+          )}
+
           {/* Signup Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Name */}
@@ -125,51 +117,6 @@ export default function SignupForm() {
                 required
                 className="h-10 w-full rounded-md border border-neutral-800 bg-neutral-950 px-3 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-700"
               />
-            </div>
-
-            {/* Phone */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-200">
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                placeholder="9800000000"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-                className="h-10 w-full rounded-md border border-neutral-800 bg-neutral-950 px-3 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-700"
-              />
-            </div>
-
-            {/* Batch and Section */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-200">
-                  Batch
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 2024"
-                  value={batch}
-                  onChange={(e) => setBatch(e.target.value)}
-                  required
-                  className="h-10 w-full rounded-md border border-neutral-800 bg-neutral-950 px-3 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-700"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-200">
-                  Section
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. A"
-                  value={section}
-                  onChange={(e) => setSection(e.target.value)}
-                  required
-                  className="h-10 w-full rounded-md border border-neutral-800 bg-neutral-950 px-3 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-700"
-                />
-              </div>
             </div>
 
             {/* Password */}
@@ -221,9 +168,10 @@ export default function SignupForm() {
 
             <button
               type="submit"
-              className="h-10 w-full rounded-md bg-white text-sm font-medium text-neutral-900 transition hover:bg-neutral-200"
+              disabled={loading}
+              className="h-10 w-full rounded-md bg-white text-sm font-medium text-neutral-900 transition hover:bg-neutral-200 disabled:opacity-50"
             >
-              Sign up
+              {loading ? "Creating account..." : "Sign up"}
             </button>
           </form>
 
@@ -255,74 +203,6 @@ export default function SignupForm() {
           </p>
         </div>
       </div>
-
-      {/* OTP Modal */}
-      {showOtpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-            <div className="text-center mb-6">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#B61C23]/10">
-                <svg
-                  className="h-6 w-6 text-[#B61C23]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-white">
-                Verify your Email
-              </h3>
-              <p className="mt-2 text-sm text-neutral-400">
-                We've sent a verification code to <br />
-                <span className="font-medium text-white">{email}</span>
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="Enter 6-digit code"
-                className="h-12 w-full rounded-md border border-neutral-800 bg-neutral-950 px-4 text-center text-lg tracking-widest text-white placeholder:text-neutral-600 focus:border-[#B61C23] focus:outline-none focus:ring-1 focus:ring-[#B61C23]"
-                maxLength={6}
-                autoFocus
-              />
-
-              {otpError && (
-                <p className="text-center text-xs text-red-500">{otpError}</p>
-              )}
-
-              <div className="text-center text-xs text-neutral-500">
-                Mock OTP is{" "}
-                <span className="font-mono text-neutral-300">123456</span>
-              </div>
-
-              <button
-                onClick={handleVerifyOtp}
-                disabled={loading}
-                className="h-10 w-full rounded-md bg-[#B61C23] text-sm font-medium text-white transition hover:bg-[#B61C23]/90 disabled:opacity-50"
-              >
-                {loading ? "Verifying..." : "Verify & Create Account"}
-              </button>
-
-              <button
-                onClick={() => setShowOtpModal(false)}
-                className="h-10 w-full rounded-md border border-neutral-800 bg-transparent text-sm font-medium text-neutral-400 transition hover:bg-neutral-800 hover:text-white"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

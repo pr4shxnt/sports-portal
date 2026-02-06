@@ -6,20 +6,18 @@ import {
   deleteEvent,
   registerForEvent,
   getMyEvents,
-} from "../controllers/eventController";
-import { protect, authorize } from "../middlewares/authMiddleware";
-import { UserRole } from "../models/User";
+} from "../controllers/eventController.js";
+import { protect, authorize } from "../middlewares/authMiddleware.js";
+import { UserRole } from "../models/User.js";
 
 const router = express.Router();
 
-router.use(protect);
-
 router.get("/", getEvents);
-router.post("/", authorize(UserRole.ADMIN), createEvent);
-router.put("/:id", authorize(UserRole.ADMIN), updateEvent);
-router.delete("/:id", authorize(UserRole.ADMIN), deleteEvent);
+router.post("/", protect, authorize(UserRole.ADMIN), createEvent);
+router.put("/:id", protect, authorize(UserRole.ADMIN), updateEvent);
+router.delete("/:id", protect, authorize(UserRole.ADMIN), deleteEvent);
 
-router.post("/:id/register", registerForEvent);
-router.get("/my", getMyEvents);
+router.post("/:id/register", protect, registerForEvent);
+router.get("/my", protect, getMyEvents);
 
 export default router;

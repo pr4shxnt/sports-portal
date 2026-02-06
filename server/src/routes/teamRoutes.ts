@@ -5,9 +5,9 @@ import {
   createTeam,
   updateTeam,
   deleteTeam,
-} from "../controllers/teamController";
-import { protect, authorize } from "../middlewares/authMiddleware";
-import { UserRole } from "../models/User";
+} from "../controllers/teamController.js";
+import { protect, authorize } from "../middlewares/authMiddleware.js";
+import { UserRole } from "../models/User.js";
 
 const router = express.Router();
 

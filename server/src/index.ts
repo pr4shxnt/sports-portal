@@ -10,20 +10,29 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+import cookieParser from "cookie-parser";
+
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  }),
+);
 app.use(helmet());
 app.use(morgan("dev"));
 
-import authRoutes from "./routes/authRoutes";
-import userRoutes from "./routes/userRoutes";
-import equipmentRoutes from "./routes/equipmentRoutes";
-import eventRoutes from "./routes/eventRoutes";
-import teamRoutes from "./routes/teamRoutes";
-import announcementRoutes from "./routes/announcementRoutes";
-import reportRoutes from "./routes/reportRoutes";
-import dashboardRoutes from "./routes/dashboardRoutes";
+import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import equipmentRoutes from "./routes/equipmentRoutes.js";
+import eventRoutes from "./routes/eventRoutes.js";
+import teamRoutes from "./routes/teamRoutes.js";
+import announcementRoutes from "./routes/announcementRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
+import formRoutes from "./routes/formRoutes.js";
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -34,6 +43,7 @@ app.use("/api/teams", teamRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/forms", formRoutes);
 
 app.get("/", (req, res) => {
   res.send("Sports Club Portal API is running");

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import Equipment, { IEquipment } from "../models/Equipment";
-import Responsibility, { RequestStatus } from "../models/Responsibility";
-import { UserRole } from "../models/User";
+import Equipment, { IEquipment } from "../models/Equipment.js";
+import Responsibility, { RequestStatus } from "../models/Responsibility.js";
+import { UserRole } from "../models/User.js";
 
 // --- Equipment Inventory ---
 

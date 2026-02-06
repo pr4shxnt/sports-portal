@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import Event from "../models/Event";
-import { UserRole } from "../models/User";
+import Event from "../models/Event.js";
+import { UserRole } from "../models/User.js";
 
 // @desc    Get all events
 // @route   GET /api/events
