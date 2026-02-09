@@ -2,6 +2,7 @@ import express from "express";
 import {
   getUsers,
   getUserById,
+  createUser,
   updateUser,
   deleteUser,
 } from "../controllers/userController.js";
@@ -18,6 +19,9 @@ router.get(
   authorize(UserRole.ADMIN, UserRole.SUPERUSER, UserRole.MODERATOR),
   getUsers,
 );
+
+// Create user: Admin only
+router.post("/", authorize(UserRole.ADMIN), createUser);
 
 // Get specific user: Admin, Superuser
 router.get("/:id", authorize(UserRole.ADMIN, UserRole.SUPERUSER), getUserById);

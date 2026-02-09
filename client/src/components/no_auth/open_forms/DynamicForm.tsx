@@ -227,13 +227,13 @@ const DynamicForm = () => {
           let shouldUpdate = false;
           const player1 = { ...updatedMembers[0] };
 
-          if (name === "full_name") {
+          if (name === "full_name" || name === "name") {
             player1.name = value;
             shouldUpdate = true;
           } else if (name === "email") {
             player1.email = value;
             shouldUpdate = true;
-          } else if (name === "phone") {
+          } else if (name === "number") {
             player1.phone = value;
             shouldUpdate = true;
           }
@@ -600,7 +600,7 @@ const DynamicForm = () => {
     }
   };
 
-  if (!formSchema) {
+  if (!formSchema || !formSchema.isActive) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-neutral-950 px-4">
         <div className="text-center">

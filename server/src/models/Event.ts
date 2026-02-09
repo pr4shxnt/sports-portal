@@ -5,6 +5,9 @@ export interface IEvent extends Document {
   description: string;
   date: Date;
   location: string;
+  slug?: string;
+  form?: Schema.Types.ObjectId;
+  registeredTeams: Schema.Types.ObjectId[];
   organizer?: Schema.Types.ObjectId;
   participants: Schema.Types.ObjectId[];
 }
@@ -15,6 +18,9 @@ const EventSchema: Schema = new Schema(
     description: { type: String, required: true },
     date: { type: Date, required: true },
     location: { type: String, required: true },
+    slug: { type: String }, // Link to the dynamic form slug (formId)
+    form: { type: Schema.Types.ObjectId, ref: "Form" },
+    registeredTeams: [{ type: Schema.Types.ObjectId, ref: "Team" }],
     organizer: { type: Schema.Types.ObjectId, ref: "User" },
     participants: [{ type: Schema.Types.ObjectId, ref: "User" }],
   },

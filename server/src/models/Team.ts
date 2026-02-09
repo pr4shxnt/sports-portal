@@ -35,7 +35,13 @@ const TeamSchema: Schema = new Schema(
     },
     coach: { type: String },
     executive: { type: Schema.Types.ObjectId, ref: "User" },
-    members: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    members: [
+      {
+        name: { type: String, required: true },
+        email: { type: String, required: true },
+        phone: { type: String, required: true },
+      },
+    ],
     formSubmission: {
       type: Schema.Types.ObjectId,
       ref: "FormSubmission",

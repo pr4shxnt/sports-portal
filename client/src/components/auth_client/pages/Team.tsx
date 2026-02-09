@@ -1,69 +1,67 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "../../ui/Modal";
+import api from "../../../services/api";
 import { useAppSelector } from "../../../store/hooks";
 import { Link } from "react-router-dom";
 
 const Team = () => {
+  interface TeamMember {
+    id: string;
+    name: string;
+    role: string;
+    sport: string;
+    status: string;
+    email: string;
+    phone: string;
+  }
+
   const { user } = useAppSelector((state) => state.auth);
-  const [selectedMember, setSelectedMember] = useState<
-    (typeof members)[0] | null
-  >(null);
-  const members = [
-    {
-      id: "6984de20dddfc136777d2a00",
-      name: "Alex Johnson",
-      role: "Team Captain",
-      sport: "Football",
-      status: "Online",
-      email: "alex.johnson@example.com",
-      phone: "+1 (555) 123-4567",
-    },
-    {
-      id: 2,
-      name: "Sarah Williams",
-      role: "Member",
-      sport: "Football",
-      status: "Offline",
-      email: "sarah.williams@example.com",
-      phone: "+1 (555) 234-5678",
-    },
-    {
-      id: 3,
-      name: "Mike Brown",
-      role: "Vice Captain",
-      sport: "Football",
-      status: "Online",
-      email: "mike.brown@example.com",
-      phone: "+1 (555) 345-6789",
-    },
-    {
-      id: 4,
-      name: "Emily Davis",
-      role: "Member",
-      sport: "Football",
-      status: "Away",
-      email: "emily.davis@example.com",
-      phone: "+1 (555) 456-7890",
-    },
-    {
-      id: 5,
-      name: "Chris Wilson",
-      role: "Member",
-      sport: "Football",
-      status: "Online",
-      email: "chris.wilson@example.com",
-      phone: "+1 (555) 567-8901",
-    },
-    {
-      id: 6,
-      name: "Jessica Taylor",
-      role: "Member",
-      sport: "Football",
-      status: "Offline",
-      email: "jessica.taylor@example.com",
-      phone: "+1 (555) 678-9012",
-    },
-  ];
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+
+  useEffect(() => {
+    const fetchMyTeams = async () => {
+      try {
+        const { data } = await api.get("/teams/my");
+        const allMembers: TeamMember[] = [];
+
+        // Handle array of teams (backend update)
+        const teams = Array.isArray(data) ? data : [data];
+
+        teams.forEach((team: any) => {
+          // Add members
+          if (team.members && Array.isArray(team.members)) {
+            team.members.forEach((member: any, index: number) => {
+              allMembers.push({
+                id: member._id || member.email,
+                name: member.name,
+                role: index === 0 ? "Team Captain" : "Member",
+                sport: team.sport,
+                status: index === 0 ? "Online" : "Away",
+                email: member.email,
+                phone: member.phone || "N/A",
+              });
+            });
+          }
+        });
+        setMembers(allMembers);
+      } catch (err: any) {
+        console.error("Error fetching teams:", err);
+        // If 404, it might just mean no team found, which is fine
+        if (err.response?.status === 404) {
+          setMembers([]);
+        } else {
+          setError(err.message || "Failed to fetch teams");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMyTeams();
+  }, []);
 
   // Group members by sport
   const membersBySport = members.reduce(
@@ -79,36 +77,47 @@ const Team = () => {
 
   return (
     <div className="p-6 space-y-8">
-      {Object.entries(membersBySport).map(([sport, teamMembers]) => (
-        <div key={sport} className="space-y-4">
-          <h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-2">
-            {sport}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {teamMembers.map((member) => (
-              <div
-                key={member.id}
-                onClick={() => setSelectedMember(member)}
-                className="flex items-center gap-4 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-[1.02]"
-              >
-                <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-lg font-bold text-zinc-600 dark:text-zinc-400">
-                  {member.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-50 truncate flex items-center gap-2">
-                    {member.name}
-                    {user?._id === member.id && (
-                      <span className="text-xs font-bold text-white bg-[#DD1D25] px-2 py-0.5 rounded-full">
-                        (You)
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {member.role}
-                  </p>
-                </div>
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="text-zinc-500">Loading teams...</div>
+        </div>
+      ) : error ? (
+        <div className="text-red-500 text-center">{error}</div>
+      ) : Object.keys(membersBySport).length === 0 ? (
+        <div className="text-center py-10 text-zinc-500">
+          You are not part of any team yet.
+        </div>
+      ) : (
+        Object.entries(membersBySport).map(([sport, teamMembers]) => (
+          <div key={sport} className="space-y-4">
+            <h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-2">
+              {sport}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {teamMembers.map((member) => (
                 <div
-                  className={`w-2.5 h-2.5 rounded-full 
+                  key={member.id}
+                  onClick={() => setSelectedMember(member)}
+                  className="flex items-center gap-4 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-[1.02]"
+                >
+                  <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-lg font-bold text-zinc-600 dark:text-zinc-400">
+                    {member.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-50 truncate flex items-center gap-2">
+                      {member.name}
+                      {user?.email === member.email && (
+                        <span className="text-xs font-bold text-white bg-[#DD1D25] px-2 py-0.5 rounded-full">
+                          (You)
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      {member.role}
+                    </p>
+                  </div>
+                  <div
+                    className={`w-2.5 h-2.5 rounded-full 
                   ${
                     member.status === "Online"
                       ? "bg-emerald-500"
@@ -116,13 +125,14 @@ const Team = () => {
                         ? "bg-amber-500"
                         : "bg-zinc-300 dark:bg-zinc-600"
                   }`}
-                  title={member.status}
-                />
-              </div>
-            ))}
+                    title={member.status}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
 
       <Modal
         isOpen={!!selectedMember}

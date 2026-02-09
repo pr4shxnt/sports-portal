@@ -14,7 +14,7 @@ router.use(protect);
 router.get("/", getAnnouncements);
 router.post(
   "/",
-  authorize(UserRole.ADMIN, UserRole.SUPERUSER, UserRole.MODERATOR),
+  authorize(UserRole.ADMIN, UserRole.SUPERUSER),
   createAnnouncement,
 );
 router.delete("/:id", authorize(UserRole.ADMIN), deleteAnnouncement);

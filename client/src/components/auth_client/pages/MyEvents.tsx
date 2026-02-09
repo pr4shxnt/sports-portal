@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../../../services/api";
 import { Link } from "react-router-dom";
 
-const Events = () => {
+const MyEvents = () => {
   interface Event {
     _id: string;
     title: string;
@@ -19,19 +19,19 @@ const Events = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchEvents = async () => {
+    const fetchMyEvents = async () => {
       try {
-        const { data } = await api.get("/events");
+        const { data } = await api.get("/events/my");
         setEvents(data);
       } catch (err: any) {
-        console.error("Error fetching events:", err);
-        setError("Failed to load events");
+        console.error("Error fetching my events:", err);
+        setError("Failed to load your events");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchEvents();
+    fetchMyEvents();
   }, []);
 
   const upcomingEvents = events.filter(
@@ -45,13 +45,11 @@ const Events = () => {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-          Upcoming Events
+          My Events
         </h1>
-        <button className="px-4 py-2 bg-[#DD1D25] text-white rounded-md text-sm font-medium hover:bg-[#C41920] transition-colors">
-          Create Event
-        </button>
       </div>
 
+      {/* Tabs */}
       <div className="flex border-b border-zinc-200 dark:border-zinc-800">
         <button
           onClick={() => setActiveTab("upcoming")}
@@ -145,4 +143,4 @@ const Events = () => {
   );
 };
 
-export default Events;
+export default MyEvents;

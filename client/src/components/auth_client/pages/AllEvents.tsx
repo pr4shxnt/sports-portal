@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../../../services/api";
 import { Link } from "react-router-dom";
 
-const Events = () => {
+const AllEvents = () => {
   interface Event {
     _id: string;
     title: string;
@@ -45,13 +45,15 @@ const Events = () => {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-          Upcoming Events
+          All Events
         </h1>
-        <button className="px-4 py-2 bg-[#DD1D25] text-white rounded-md text-sm font-medium hover:bg-[#C41920] transition-colors">
+        {/* Only Admin/Superuser/Moderator should see create button? Assuming logic handled elsewhere or hidden */}
+        {/* <button className="px-4 py-2 bg-[#DD1D25] text-white rounded-md text-sm font-medium hover:bg-[#C41920] transition-colors">
           Create Event
-        </button>
+        </button> */}
       </div>
 
+      {/* Tabs */}
       <div className="flex border-b border-zinc-200 dark:border-zinc-800">
         <button
           onClick={() => setActiveTab("upcoming")}
@@ -145,4 +147,4 @@ const Events = () => {
   );
 };
 
-export default Events;
+export default AllEvents;

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Event from "../models/Event.js";
+import Team from "../models/Team.js";
 import { UserRole } from "../models/User.js";
 
 // @desc    Get all events
@@ -9,6 +10,19 @@ export const getEvents = async (req: Request, res: Response) => {
   try {
     const events = await Event.find({}).sort({ date: 1 });
     res.json(events);
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+// @desc    Get single event by ID
+// @route   GET /api/events/:id
+// @access  Public
+export const getEventById = async (req: Request, res: Response) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ message: "Event not found" });
+    res.json(event);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
   }
@@ -97,7 +111,20 @@ export const getMyEvents = async (req: Request, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Not authorized" });
 
-    const events = await Event.find({ participants: req.user._id });
+    // Find teams where user is a member (by email) or executive (by ID)
+    const teams = await Team.find({
+      $or: [{ "members.email": req.user.email }, { executive: req.user._id }],
+    }).select("event");
+
+    // Extract event IDs from teams
+    const teamEventIds = teams
+      .map((team) => team.event)
+      .filter((id) => id != null);
+
+    // Find events where user is a participant OR belongs to a registered team
+    const events = await Event.find({
+      $or: [{ participants: req.user._id }, { _id: { $in: teamEventIds } }],
+    });
     res.json(events);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });

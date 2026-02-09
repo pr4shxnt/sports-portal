@@ -9,8 +9,7 @@
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "create:admin": "tsx src/scripts/createAdmin.ts",
-    "seed:forms": "tsx src/scripts/seedForms.ts",
-    "seed:users": "tsx src/scripts/seedUsers.ts"
+    "membership": "tsx src/scripts/seedMembershipForm.ts"
   },
   "keywords": [],
   "author": "",

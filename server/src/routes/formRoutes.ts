@@ -9,6 +9,9 @@ import {
   getFormSubmissions,
   updateSubmissionStatus,
   getAllSubmissions,
+  getMemberRegistrations,
+  updateMemberRegistrationStatus,
+  bulkUpdateMemberRegistrationStatus,
 } from "../controllers/formController.js";
 import { sendOTP, verifyOTP } from "../controllers/otpController.js";
 import { protect, authorize } from "../middlewares/authMiddleware.js";
@@ -55,6 +58,28 @@ router.patch(
   protect,
   authorize(UserRole.ADMIN, UserRole.MODERATOR),
   updateSubmissionStatus,
+);
+
+// Membership Registration routes
+router.get(
+  "/membership-registrations/all",
+  protect,
+  authorize(UserRole.ADMIN),
+  getMemberRegistrations,
+);
+
+router.patch(
+  "/membership-registrations/bulk/status",
+  protect,
+  authorize(UserRole.ADMIN),
+  bulkUpdateMemberRegistrationStatus,
+);
+
+router.patch(
+  "/membership-registrations/:id/status",
+  protect,
+  authorize(UserRole.ADMIN),
+  updateMemberRegistrationStatus,
 );
 
 export default router;

@@ -5,25 +5,6 @@ import { logout } from "../../../store/slices/authSlice";
 import logo from "../../../assets/logo_main.png";
 
 // Icons
-const LayoutDashboardIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <rect width="7" height="9" x="3" y="3" rx="1" />
-    <rect width="7" height="5" x="14" y="3" rx="1" />
-    <rect width="7" height="9" x="14" y="12" rx="1" />
-    <rect width="7" height="5" x="3" y="16" rx="1" />
-  </svg>
-);
 
 const UsersIcon = ({ className }: { className?: string }) => (
   <svg
@@ -249,7 +230,11 @@ export function Sidebar({ className }: SidebarProps) {
     // USER (Members)
     if (userRole === "user") {
       return [
-        { label: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
+        {
+          label: "Announcements",
+          icon: MessageSquareIcon,
+          href: "/dashboard/announcements",
+        },
         {
           label: "Request Equipments",
           icon: DumbbellIcon,
@@ -259,7 +244,12 @@ export function Sidebar({ className }: SidebarProps) {
         {
           label: "Registered Events",
           icon: CalendarIcon,
-          href: "/dashboard/events",
+          href: "/dashboard/my-events",
+        },
+        {
+          label: "All Events",
+          icon: CalendarIcon,
+          href: "/dashboard/all-events",
         },
         { label: "Report Bug", icon: BugIcon, href: "/dashboard/bug-report" },
         {
@@ -275,7 +265,11 @@ export function Sidebar({ className }: SidebarProps) {
     // MODERATOR (General Members)
     if (userRole === "moderator") {
       return [
-        { label: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
+        {
+          label: "Announcements",
+          icon: MessageSquareIcon,
+          href: "/dashboard/announcements",
+        },
         {
           label: "Request Equipment",
           icon: DumbbellIcon,
@@ -312,11 +306,6 @@ export function Sidebar({ className }: SidebarProps) {
           icon: SettingsIcon,
           href: "/dashboard/forms",
         },
-        {
-          label: "Announcements",
-          icon: MessageSquareIcon,
-          href: "/dashboard/announcements",
-        },
         { label: "Report Bug", icon: BugIcon, href: "/dashboard/bug-report" },
         {
           label: "Feedback",
@@ -331,7 +320,11 @@ export function Sidebar({ className }: SidebarProps) {
     // SUPERUSER (College Staff)
     if (userRole === "superuser") {
       return [
-        { label: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
+        {
+          label: "Announcements",
+          icon: MessageSquareIcon,
+          href: "/dashboard/announcements",
+        },
         {
           label: "Request Equipment",
           icon: DumbbellIcon,
@@ -357,11 +350,6 @@ export function Sidebar({ className }: SidebarProps) {
           icon: UsersIcon,
           href: "/dashboard/members",
         },
-        {
-          label: "Announcements",
-          icon: MessageSquareIcon,
-          href: "/dashboard/announcements",
-        },
         { label: "Report Bug", icon: BugIcon, href: "/dashboard/bug-report" },
         {
           label: "Feedback",
@@ -376,7 +364,11 @@ export function Sidebar({ className }: SidebarProps) {
     // ADMIN (Club Executives)
     if (userRole === "admin") {
       return [
-        { label: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
+        {
+          label: "Announcements",
+          icon: MessageSquareIcon,
+          href: "/dashboard/announcements",
+        },
         {
           label: "Request Equipment",
           icon: DumbbellIcon,
@@ -419,9 +411,9 @@ export function Sidebar({ className }: SidebarProps) {
           href: "/dashboard/members",
         },
         {
-          label: "Announcements",
-          icon: MessageSquareIcon,
-          href: "/dashboard/announcements",
+          label: "Membership Requests",
+          icon: UsersIcon,
+          href: "/dashboard/membership-requests",
         },
         { label: "Report Bug", icon: BugIcon, href: "/dashboard/bug-report" },
         {
@@ -435,10 +427,7 @@ export function Sidebar({ className }: SidebarProps) {
     }
 
     // Default fallback
-    return [
-      { label: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
-      { label: "Profile", icon: UserIcon, href: "/dashboard/profile" },
-    ];
+    return [{ label: "Profile", icon: UserIcon, href: "/dashboard/profile" }];
   };
 
   const navItems = getNavItems();

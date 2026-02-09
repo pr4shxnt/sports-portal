@@ -1,28 +1,7 @@
 import type { Request, Response } from "express";
 import OTP from "../models/OTP.js";
 import Form from "../models/Form.js";
-import nodemailer from "nodemailer";
-
-// Helper to get transporter
-const getTransporter = () => {
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
-
-  if (!user || !pass) {
-    console.error(
-      "CRITICAL: EMAIL_USER or EMAIL_PASS not found in environment variables",
-    );
-    throw new Error("Email configuration missing");
-  }
-
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: user,
-      pass: pass,
-    },
-  });
-};
+import { sendOTPEmail } from "../utils/emailHelper.js";
 
 // Generate a 6-digit OTP
 const generateOTP = () => {
@@ -60,26 +39,8 @@ export const sendOTP = async (req: Request, res: Response) => {
       { upsert: true, new: true },
     );
 
-    // Send real email
-    const mailOptions = {
-      from: `"Sports Club Portal" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: "Your OTP for Registration",
-      text: `Your OTP for registration is: ${otpCode}. This code will expire in 10 minutes.`,
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #DD1D25;">Verification Code</h2>
-          <p>Hello,</p>
-          <p>Your OTP for registration is:</p>
-          <div style="font-size: 32px; font-weight: bold; color: #333; letter-spacing: 5px; margin: 20px 0;">${otpCode}</div>
-          <p>This code will expire in <strong>10 minutes</strong>. If you did not request this code, please ignore this email.</p>
-          <hr style="border: 0; border-top: 1px solid #eee;" />
-          <p style="font-size: 12px; color: #888;">&copy; 2024 Sports Club Portal. All rights reserved.</p>
-        </div>
-      `,
-    };
-
-    await getTransporter().sendMail(mailOptions);
+    // Send real email using helper
+    await sendOTPEmail(email, otpCode);
     console.log(`[OTP] Email sent to ${email}`);
 
     res.status(200).json({

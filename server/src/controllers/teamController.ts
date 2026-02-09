@@ -7,9 +7,7 @@ import User, { UserRole } from "../models/User.js";
 // @access  Admin/Superuser/Moderator
 export const getTeams = async (req: Request, res: Response) => {
   try {
-    const teams = await Team.find({})
-      .populate("members", "name email role")
-      .populate("executive", "name email");
+    const teams = await Team.find({}).populate("executive", "name email");
     res.json(teams);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
@@ -23,18 +21,12 @@ export const getMyTeam = async (req: Request, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Not authorized" });
 
-    // Find team where user is a member or executive
-    const team = await Team.findOne({
-      $or: [{ members: req.user._id }, { executive: req.user._id }],
-    })
-      .populate("members", "name email role")
-      .populate("executive", "name email");
+    // Find teams where user is a member (by email) or executive (by ID)
+    const teams = await Team.find({
+      $or: [{ "members.email": req.user.email }, { executive: req.user._id }],
+    }).populate("executive", "name email");
 
-    if (team) {
-      res.json(team);
-    } else {
-      res.status(404).json({ message: "No team found for this user" });
-    }
+    res.json(teams);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
   }
