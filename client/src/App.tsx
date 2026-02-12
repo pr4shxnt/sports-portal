@@ -110,6 +110,14 @@ const router = createBrowserRouter([
     path: "/",
     children: [
       {
+        index: true,
+        element: (
+          <>
+            <p className="text-3xl">Home</p>
+          </>
+        ),
+      },
+      {
         path: "/events",
         element: <Home />,
       },
