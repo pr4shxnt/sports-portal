@@ -6,6 +6,7 @@ import FormSubmission, { SubmissionStatus } from "../models/FormSubmission.js";
 import Team, { TeamType } from "../models/Team.js";
 import User, { UserRole } from "../models/User.js";
 import Event from "../models/Event.js";
+import NotificationList from "../models/NotificationList.js";
 import MemberRegistration, {
   RegistrationStatus,
   AppliedRole,
@@ -534,6 +535,26 @@ const processRegistrationStatusUpdate = async (
       registration.name,
       registration.appliedRole as unknown as string,
     );
+
+    // Automatically subscribe to announcements
+    try {
+      let list = await NotificationList.findOne({ name: "announcements" });
+      if (!list) {
+        list = await NotificationList.create({
+          name: "announcements",
+          emails: [],
+        });
+      }
+      if (!list.emails.includes(registration.email)) {
+        list.emails.push(registration.email);
+        await list.save();
+        console.log(
+          `[NotificationList] Subscribed approved user: ${registration.email}`,
+        );
+      }
+    } catch (notifError) {
+      console.error("[NotificationList] Error subscribing user:", notifError);
+    }
   }
 
   // Send status update email

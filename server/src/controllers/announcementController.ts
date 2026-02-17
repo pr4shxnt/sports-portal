@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
 import Announcement from "../models/Announcement.js";
+import NotificationList from "../models/NotificationList.js";
+import User from "../models/User.js";
+import { sendAnnouncementEmail } from "../utils/emailHelper.js";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
 
@@ -123,6 +126,24 @@ export const createAnnouncement = async (req: Request, res: Response) => {
     res
       .status(201)
       .json(transformAnnouncement(populatedAnnouncement, req.user?._id));
+
+    // Send emails to subscribers
+    (async () => {
+      try {
+        const list = await NotificationList.findOne({ name: "announcements" });
+        if (list && list.emails.length > 0) {
+          // Fetch names for these emails if possible, or just send generic
+          const users = await User.find({ email: { $in: list.emails } }).select(
+            "email name",
+          );
+          for (const user of users) {
+            await sendAnnouncementEmail(user.email, user.name, title, content);
+          }
+        }
+      } catch (emailError) {
+        console.error("[AnnouncementEmail] Error:", emailError);
+      }
+    })();
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
   }

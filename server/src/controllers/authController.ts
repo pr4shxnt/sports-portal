@@ -14,7 +14,7 @@ const generateToken = (id: string) => {
 // @route   POST /api/auth/register
 // @access  Public
 export const registerUser = async (req: Request, res: Response) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, phone, studentId } = req.body;
 
   try {
     const userExists = await User.findOne({ email });
@@ -31,6 +31,8 @@ export const registerUser = async (req: Request, res: Response) => {
       email,
       password: hashedPassword,
       role: role || "user", // Default to user if not specified (should be restricted in prod)
+      phone,
+      studentId,
     });
 
     if (user) {
@@ -51,6 +53,10 @@ export const registerUser = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        phone: user.phone,
+        studentId: user.studentId,
+        lastProfileUpdate: user.lastProfileUpdate,
+        lastPasswordUpdate: user.lastPasswordUpdate,
       });
     } else {
       res.status(400).json({ message: "Invalid user data" });
@@ -102,6 +108,10 @@ export const loginUser = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        phone: user.phone,
+        studentId: user.studentId,
+        lastProfileUpdate: user.lastProfileUpdate,
+        lastPasswordUpdate: user.lastPasswordUpdate,
       });
     } else {
       res.status(401).json({ message: "Invalid email or password" });
@@ -131,6 +141,10 @@ export const getUserProfile = async (req: Request, res: Response) => {
       name: req.user.name,
       email: req.user.email,
       role: req.user.role,
+      phone: req.user.phone,
+      studentId: req.user.studentId,
+      lastProfileUpdate: req.user.lastProfileUpdate,
+      lastPasswordUpdate: req.user.lastPasswordUpdate,
     });
   } else {
     res.status(404).json({ message: "User not found" });

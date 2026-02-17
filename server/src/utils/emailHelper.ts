@@ -221,3 +221,42 @@ export const sendMembershipStatusEmail = async (
     console.error("[Email] Failed to send status email:", error);
   }
 };
+
+export const sendAnnouncementEmail = async (
+  email: string,
+  userName: string,
+  title: string,
+  content: string,
+) => {
+  const mailOptions = {
+    from: `"Sports Club Portal" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `New Announcement: ${title}`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; padding: 40px 20px; color: #111;">
+        <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 24px; color: #DD1D25;">Sports Club Announcement</h1>
+        <p style="font-size: 15px; line-height: 1.5; color: #111; margin-bottom: 16px;">
+          Hello <strong>${userName}</strong>,
+        </p>
+        <div style="background-color: #f9f9f9; padding: 24px; border-radius: 12px; border: 1px solid #eee; margin-bottom: 32px;">
+          <h2 style="font-size: 18px; font-weight: 700; margin: 0 0 12px 0; color: #111;">${title}</h2>
+          <p style="font-size: 15px; line-height: 1.6; color: #444; margin: 0; white-space: pre-wrap;">${content}</p>
+        </div>
+        <a href="${process.env.CLIENT_URL || "#"}/dashboard/announcements" style="display: inline-block; background-color: #DD1D25; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 600; margin-bottom: 40px;">
+          View on Dashboard
+        </a>
+        <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 24px;" />
+        <p style="font-size: 11px; color: #999; line-height: 1.6;">
+          You are receiving this email because you have notifications enabled. You can manage your preferences in the Settings page.
+        </p>
+      </div>
+    `,
+  };
+
+  try {
+    await getTransporter().sendMail(mailOptions);
+    console.log(`[Email] Announcement sent to ${email}`);
+  } catch (error) {
+    console.error("[Email] Failed to send announcement email:", error);
+  }
+};

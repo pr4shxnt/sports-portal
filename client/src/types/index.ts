@@ -16,6 +16,10 @@ export interface User {
   team?: string;
   isBanned: boolean;
   createdAt: string;
+  phone?: string;
+  studentId?: string;
+  lastProfileUpdate?: string;
+  lastPasswordUpdate?: string;
 }
 
 export interface AuthResponse extends User {
@@ -39,6 +43,8 @@ export interface Equipment {
   _id: string;
   name: string;
   category: string;
+  type: "Primary" | "Secondary";
+  linkedEquipment?: string; // ID only
   quantity: number;
   condition: "New" | "Good" | "Fair" | "Poor";
   description?: string;
@@ -52,6 +58,8 @@ export const RequestStatus = {
   REJECTED: "rejected",
   RETURNED: "returned",
   OVERDUE: "overdue",
+  WAITING: "waiting",
+  TRANSFERRED: "transferred",
 } as const;
 
 export type RequestStatus = (typeof RequestStatus)[keyof typeof RequestStatus];
@@ -67,8 +75,14 @@ export interface Responsibility {
   dueDate?: string;
   status: RequestStatus;
   notes?: string;
+  transferChain?: {
+    fromUser: string;
+    toUser: string;
+    date: string;
+  }[];
   createdAt: string;
   updatedAt: string;
+  approvedBy?: User | string;
 }
 
 export interface EquipmentRequest {

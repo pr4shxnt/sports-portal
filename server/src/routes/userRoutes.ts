@@ -5,6 +5,7 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  changePassword,
 } from "../controllers/userController.js";
 import { protect, authorize } from "../middlewares/authMiddleware.js";
 import { UserRole } from "../models/User.js";
@@ -31,5 +32,8 @@ router.put("/:id", authorize(UserRole.ADMIN, UserRole.MODERATOR), updateUser);
 
 // Delete user: Admin only
 router.delete("/:id", authorize(UserRole.ADMIN), deleteUser);
+
+// Change own password: All authenticated users
+router.put("/profile/password", changePassword);
 
 export default router;

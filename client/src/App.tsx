@@ -21,8 +21,11 @@ import AllTeams from "./components/auth_client/pages/AllTeams";
 import Members from "./components/auth_client/pages/Members";
 import MemberRegistrations from "./components/auth_client/pages/MemberRegistrations";
 import Announcements from "./components/auth_client/pages/Announcements";
+import Inventory from "./components/auth_client/pages/Inventory";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
+import FeedbackList from "./components/auth_client/pages/FeedbackList";
+import { Toaster } from "react-hot-toast";
 
 const router = createBrowserRouter([
   {
@@ -97,6 +100,14 @@ const router = createBrowserRouter([
         path: "announcements",
         element: <Announcements />,
       },
+      {
+        path: "inventory",
+        element: <Inventory />,
+      },
+      {
+        path: "user-feedback",
+        element: <FeedbackList />,
+      },
     ],
   },
   {
@@ -143,6 +154,7 @@ export default function App() {
     <>
       <Provider store={store}>
         <AuthInitializer>
+          <Toaster position="top-center" />
           <RouterProvider router={router} />
         </AuthInitializer>
       </Provider>

@@ -41,7 +41,9 @@ export const updateReportStatus = async (req: Request, res: Response) => {
     const report = await Report.findById(req.params.id);
     if (!report) return res.status(404).json({ message: "Report not found" });
 
-    report.status = req.body.status || report.status;
+    if (req.body.status) {
+      report.status = req.body.status.toLowerCase() as any;
+    }
     const updated = await report.save();
     res.json(updated);
   } catch (error) {

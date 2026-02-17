@@ -30,7 +30,7 @@ const Forms = () => {
   // User View: Can only see available forms
   if (user?.role === "user") {
     return (
-      <div className="p-6">
+      <div className="p-6 max-w-7xl mx-auto">
         <FormList />
       </div>
     );
@@ -38,7 +38,7 @@ const Forms = () => {
 
   // Moderator/Admin View: Can manage forms and submissions
   return (
-    <div className="p-6">
+    <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
           Form Management
