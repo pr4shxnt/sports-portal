@@ -157,7 +157,7 @@ const RequestEquipments = () => {
     });
   };
 
-  if (loading) return <LoadingSpinner fullScreen />;
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">

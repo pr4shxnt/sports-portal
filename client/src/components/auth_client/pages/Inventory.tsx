@@ -230,7 +230,7 @@ const Inventory = () => {
     }
   };
 
-  if (loading) return <LoadingSpinner fullScreen />;
+  if (loading) return <LoadingSpinner />;
 
   const pendingRequests = responsibilities.filter(
     (r) => r.status === RequestStatus.PENDING,
