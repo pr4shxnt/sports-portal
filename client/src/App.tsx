@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import LoginForm from "./components/no_auth/Login";
 import DynamicForm from "./components/no_auth/open_forms/DynamicForm";
 import Home from "./pages/Home";
+import ErrorPage from "./components/ui/ErrorPage";
 import { store } from "./store/store";
 import { Provider } from "react-redux";
 import RootComp from "./components/auth_client/root/RootComp";
@@ -34,6 +35,7 @@ const router = createBrowserRouter([
         <RootComp />
       </ProtectedRoute>
     ),
+    errorElement: <ErrorPage />,
     children: [
       {
         index: true,
@@ -107,6 +109,10 @@ const router = createBrowserRouter([
         path: "user-feedback",
         element: <FeedbackList />,
       },
+      {
+        path: "*",
+        element: <ErrorPage />,
+      },
     ],
   },
   {
@@ -116,6 +122,7 @@ const router = createBrowserRouter([
 
   {
     path: "/",
+    errorElement: <ErrorPage />,
     children: [
       {
         index: true,
@@ -128,6 +135,10 @@ const router = createBrowserRouter([
       {
         path: "/form/:formId",
         element: <DynamicForm />,
+      },
+      {
+        path: "*",
+        element: <ErrorPage />,
       },
     ],
   },

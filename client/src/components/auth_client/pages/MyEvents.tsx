@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import api from "../../../services/api";
 import { Link } from "react-router-dom";
+import LoadingSpinner from "../../ui/LoadingSpinner";
 
 const MyEvents = () => {
   interface Event {
@@ -74,9 +75,7 @@ const MyEvents = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="text-zinc-500">Loading events...</div>
-        </div>
+        <LoadingSpinner />
       ) : error ? (
         <div className="text-center text-red-500 py-10">{error}</div>
       ) : (activeTab === "upcoming" ? upcomingEvents : pastEvents).length ===
