@@ -45,6 +45,23 @@ export const login = createAsyncThunk(
   },
 );
 
+export const googleLogin = createAsyncThunk(
+  "auth/googleLogin",
+  async (
+    params: { tokenId?: string; accessToken?: string },
+    { rejectWithValue },
+  ) => {
+    try {
+      const response = await authService.googleLogin(params);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || "Google Login failed",
+      );
+    }
+  },
+);
+
 export const register = createAsyncThunk(
   "auth/register",
   async (data: RegisterData, { rejectWithValue }) => {
@@ -105,6 +122,26 @@ const authSlice = createSlice({
       },
     );
     builder.addCase(login.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload as string;
+    });
+
+    // Google Login
+    builder.addCase(googleLogin.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(
+      googleLogin.fulfilled,
+      (state, action: PayloadAction<AuthResponse>) => {
+        state.loading = false;
+        state.user = action.payload;
+        state.token = action.payload.token;
+        state.isAuthenticated = true;
+        state.error = null;
+      },
+    );
+    builder.addCase(googleLogin.rejected, (state, action) => {
       state.loading = false;
       state.error = action.payload as string;
     });

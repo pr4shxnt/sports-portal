@@ -26,4 +26,9 @@ export const userService = {
   delete: async (id: string): Promise<void> => {
     await api.delete(`/users/${id}`);
   },
+
+  // Change own password
+  changePassword: async (data: any): Promise<void> => {
+    await api.put("/users/profile/password", data);
+  },
 };

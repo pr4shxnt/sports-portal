@@ -12,7 +12,11 @@ const router = express.Router();
 router.use(protect);
 
 router.post("/", submitReport);
-router.get("/", authorize(UserRole.ADMIN), getReports);
-router.put("/:id", authorize(UserRole.ADMIN), updateReportStatus);
+router.get("/", authorize(UserRole.ADMIN, UserRole.MODERATOR), getReports);
+router.put(
+  "/:id",
+  authorize(UserRole.ADMIN, UserRole.MODERATOR),
+  updateReportStatus,
+);
 
 export default router;

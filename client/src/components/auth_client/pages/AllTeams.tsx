@@ -21,6 +21,7 @@ interface Team {
     name: string;
     email: string;
   };
+  event?: string;
   createdAt: string;
 }
 
@@ -54,17 +55,37 @@ const AllTeams = () => {
     fetchData();
   }, []);
 
-  // Group teams by sport
-  const teamsBySport = teams.reduce(
+  // Group teams by active/past status and sport
+  const teamsCategorized = teams.reduce(
     (acc, team) => {
       const sport = team.sport || "General";
-      if (!acc[sport]) {
-        acc[sport] = [];
+      const sportLower = sport.toLowerCase();
+      const matchingEvent = events.find(
+        (e) =>
+          e._id === team.event ||
+          e.slug === sportLower ||
+          e.title.toLowerCase().includes(sportLower),
+      );
+
+      // If no event is associated, don't show the team (as per user request)
+      if (!matchingEvent && team.teamType === "event") return acc;
+
+      const isPast =
+        matchingEvent &&
+        new Date(matchingEvent.endDate || matchingEvent.date) < new Date();
+
+      const category = isPast ? "past" : "active";
+
+      if (!acc[category][sport]) {
+        acc[category][sport] = [];
       }
-      acc[sport].push(team);
+      acc[category][sport].push(team);
       return acc;
     },
-    {} as Record<string, Team[]>,
+    { active: {}, past: {} } as {
+      active: Record<string, Team[]>;
+      past: Record<string, Team[]>;
+    },
   );
 
   if (loading) {
@@ -90,12 +111,13 @@ const AllTeams = () => {
         </div>
       </div>
 
-      {Object.keys(teamsBySport).length === 0 ? (
+      {/* Active Teams */}
+      {Object.keys(teamsCategorized.active).length === 0 ? (
         <div className="text-center py-20 text-zinc-500 bg-white dark:bg-zinc-900 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
-          No teams registered yet.
+          No active teams registered yet.
         </div>
       ) : (
-        Object.entries(teamsBySport).map(([sport, sportTeams]) => (
+        Object.entries(teamsCategorized.active).map(([sport, sportTeams]) => (
           <div key={sport} className="space-y-4">
             <div className="flex items-center gap-3">
               <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-lg">
@@ -181,6 +203,71 @@ const AllTeams = () => {
             </div>
           </div>
         ))
+      )}
+
+      {/* Past Teams Section */}
+      {Object.keys(teamsCategorized.past).length > 0 && (
+        <div className="space-y-8 pt-10 border-t border-zinc-200 dark:border-zinc-800">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold text-zinc-500 uppercase tracking-widest">
+              Past Teams
+            </h2>
+            <div className="h-px flex-1 bg-zinc-100 dark:bg-zinc-800" />
+          </div>
+
+          {Object.entries(teamsCategorized.past).map(([sport, sportTeams]) => (
+            <div key={sport} className="space-y-4">
+              <div className="flex items-center gap-3">
+                <h3 className="text-md font-bold text-zinc-500 bg-zinc-50 dark:bg-zinc-900/50 px-3 py-1 rounded-lg border border-zinc-100 dark:border-zinc-800">
+                  {sport}
+                </h3>
+                <div className="h-px flex-1 bg-zinc-100 dark:bg-zinc-800/50" />
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                  Event Ended
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-75 grayscale hover:grayscale-0 transition-all">
+                {sportTeams.map((team) => (
+                  <button
+                    key={team._id}
+                    onClick={() => setSelectedTeam(team)}
+                    className="group text-left p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="font-bold text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-zinc-50 transition-colors">
+                        {team.name}
+                      </h3>
+                      <span className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-400">
+                        {team.teamType}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm text-zinc-400">
+                      <div className="flex -space-x-2">
+                        {team.members.slice(0, 3).map((m, i) => (
+                          <div
+                            key={i}
+                            className="w-7 h-7 rounded-full border-2 border-white dark:border-zinc-900 bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold"
+                          >
+                            {m.name.charAt(0)}
+                          </div>
+                        ))}
+                      </div>
+                      <span>{team.members.length} Members</span>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between text-xs pt-3 border-t border-zinc-100 dark:border-zinc-800/30">
+                      <span className="text-zinc-400">
+                        Captain: {team.members[0]?.name || "N/A"}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       <Modal

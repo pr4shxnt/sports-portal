@@ -10,6 +10,8 @@ interface User {
   role: string;
   isBanned: boolean;
   createdAt: string;
+  studentId?: string;
+  phone?: string;
 }
 
 const Members = () => {
@@ -25,6 +27,8 @@ const Members = () => {
     email: "",
     password: "",
     role: "user",
+    studentId: "",
+    phone: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -68,7 +72,14 @@ const Members = () => {
     try {
       await api.post("/users", newMember);
       setIsAddModalOpen(false);
-      setNewMember({ name: "", email: "", password: "", role: "user" });
+      setNewMember({
+        name: "",
+        email: "",
+        password: "",
+        role: "user",
+        studentId: "",
+        phone: "",
+      });
       fetchUsers();
     } catch (err: any) {
       setFormError(err.response?.data?.message || "Failed to create member");
@@ -92,13 +103,13 @@ const Members = () => {
         "text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400 border-purple-100 dark:border-purple-900/30",
     },
     {
-      label: "SC member",
+      label: "General member",
       role: "moderator",
       color:
         "text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400 border-blue-100 dark:border-blue-900/30",
     },
     {
-      label: "general member",
+      label: "Student",
       role: "user",
       color:
         "text-zinc-600 bg-zinc-50 dark:bg-zinc-800/50 dark:text-zinc-400 border-zinc-100 dark:border-zinc-800",
@@ -310,6 +321,40 @@ const Members = () => {
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">
+              Student ID{" "}
+              {newMember.role !== "superuser" && (
+                <span className="text-red-500">*</span>
+              )}
+            </label>
+            <input
+              type="text"
+              required={newMember.role !== "superuser"}
+              placeholder="Enter student ID"
+              value={newMember.studentId}
+              onChange={(e) =>
+                setNewMember({ ...newMember, studentId: e.target.value })
+              }
+              className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-[#DD1D25] focus:border-transparent outline-none transition-all text-zinc-900 dark:text-zinc-100"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">
+              Phone Number
+            </label>
+            <input
+              type="tel"
+              placeholder="Enter phone number"
+              value={newMember.phone}
+              onChange={(e) =>
+                setNewMember({ ...newMember, phone: e.target.value })
+              }
+              className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-[#DD1D25] focus:border-transparent outline-none transition-all text-zinc-900 dark:text-zinc-100"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">
               Member Role
             </label>
             <select
@@ -319,8 +364,8 @@ const Members = () => {
               }
               className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-[#DD1D25] focus:border-transparent outline-none transition-all text-zinc-900 dark:text-zinc-100"
             >
-              <option value="user">General Member</option>
-              <option value="moderator">SC Member</option>
+              <option value="user">Student</option>
+              <option value="moderator">General Member</option>
               <option value="superuser">Staff</option>
               <option value="admin">Executive</option>
             </select>

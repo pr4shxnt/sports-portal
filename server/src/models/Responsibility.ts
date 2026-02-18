@@ -6,6 +6,8 @@ export enum RequestStatus {
   REJECTED = "rejected",
   RETURNED = "returned",
   OVERDUE = "overdue",
+  WAITING = "waiting",
+  TRANSFERRED = "transferred",
 }
 
 export interface IResponsibility extends Document {
@@ -18,6 +20,12 @@ export interface IResponsibility extends Document {
   dueDate?: Date;
   status: RequestStatus;
   notes?: string;
+  transferChain?: {
+    fromUser: Schema.Types.ObjectId;
+    toUser: Schema.Types.ObjectId;
+    date: Date;
+  }[];
+  approvedBy?: Schema.Types.ObjectId;
 }
 
 const ResponsibilitySchema: Schema = new Schema(
@@ -39,6 +47,14 @@ const ResponsibilitySchema: Schema = new Schema(
       default: RequestStatus.PENDING,
     },
     notes: { type: String },
+    transferChain: [
+      {
+        fromUser: { type: Schema.Types.ObjectId, ref: "User" },
+        toUser: { type: Schema.Types.ObjectId, ref: "User" },
+        date: { type: Date, default: Date.now },
+      },
+    ],
+    approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true },
 );

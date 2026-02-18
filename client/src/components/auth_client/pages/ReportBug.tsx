@@ -1,6 +1,6 @@
 const ReportBug = () => {
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
           Report a Bug

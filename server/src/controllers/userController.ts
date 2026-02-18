@@ -32,7 +32,7 @@ export const getUsers = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const createUser = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, phone, studentId } = req.body;
 
     console.log(req.body);
 
@@ -49,6 +49,8 @@ export const createUser = async (req: Request, res: Response) => {
       email,
       password: hashedPassword,
       role: role || UserRole.USER,
+      phone,
+      studentId,
     });
 
     if (user) {
@@ -65,6 +67,8 @@ export const createUser = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        phone: user.phone,
+        studentId: user.studentId,
         createdAt: user.createdAt,
       });
     } else {
@@ -111,8 +115,30 @@ export const updateUser = async (req: Request, res: Response) => {
           .json({ message: "Moderators can only update members." });
       }
 
+      // 7-day cooldown for self-update
+      if (req.user?._id.toString() === user._id.toString()) {
+        const lastUpdate = user.lastProfileUpdate;
+        if (lastUpdate) {
+          const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+          const now = new Date().getTime();
+          const nextAvailable = lastUpdate.getTime() + sevenDaysInMs;
+          if (now < nextAvailable) {
+            const daysLeft = Math.ceil(
+              (nextAvailable - now) / (1000 * 60 * 60 * 24),
+            );
+            return res.status(403).json({
+              message: `You can only update your profile once a week. Try again in ${daysLeft} days.`,
+            });
+          }
+        }
+        user.lastProfileUpdate = new Date();
+      }
+
       user.name = req.body.name || user.name;
       user.email = req.body.email || user.email;
+      user.phone = req.body.phone !== undefined ? req.body.phone : user.phone;
+      user.studentId =
+        req.body.studentId !== undefined ? req.body.studentId : user.studentId;
       // Only Admin can change roles or ban
       if (req.user?.role === UserRole.ADMIN) {
         user.role = req.body.role || user.role;
@@ -141,6 +167,10 @@ export const updateUser = async (req: Request, res: Response) => {
         name: updatedUser.name,
         email: updatedUser.email,
         role: updatedUser.role,
+        phone: updatedUser.phone,
+        studentId: updatedUser.studentId,
+        lastProfileUpdate: updatedUser.lastProfileUpdate,
+        lastPasswordUpdate: updatedUser.lastPasswordUpdate,
         isBanned: updatedUser.isBanned,
       });
     } else {
@@ -164,6 +194,53 @@ export const deleteUser = async (req: Request, res: Response) => {
     } else {
       res.status(404).json({ message: "User not found" });
     }
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+// @desc    Change own password
+// @route   PUT /api/users/profile/password
+// @access  Private
+export const changePassword = async (req: Request, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user?._id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(
+      currentPassword,
+      user.password as string,
+    );
+    if (!isMatch) {
+      return res.status(401).json({ message: "Incorrect current password" });
+    }
+
+    // 7-day cooldown
+    const lastUpdate = user.lastPasswordUpdate;
+    if (lastUpdate) {
+      const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+      const now = new Date().getTime();
+      const nextAvailable = lastUpdate.getTime() + sevenDaysInMs;
+      if (now < nextAvailable) {
+        const daysLeft = Math.ceil(
+          (nextAvailable - now) / (1000 * 60 * 60 * 24),
+        );
+        return res.status(403).json({
+          message: `You can only change your password once a week. Try again in ${daysLeft} days.`,
+        });
+      }
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    user.lastPasswordUpdate = new Date();
+    await user.save();
+
+    res.json({ message: "Password updated successfully" });
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
   }

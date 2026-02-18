@@ -7,8 +7,8 @@ export enum RegistrationStatus {
 }
 
 export enum AppliedRole {
-  SC_MEMBER = "moderator", // SC Member maps to moderator role
-  GENERAL_MEMBER = "user", // General Member maps to user role
+  SC_MEMBER = "moderator", // General Member maps to moderator role
+  GENERAL_MEMBER = "user", // Student maps to user role
 }
 
 export interface IMemberRegistration extends Document {

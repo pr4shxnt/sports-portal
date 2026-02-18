@@ -134,7 +134,7 @@ const MemberRegistrations = () => {
   };
 
   const getRoleLabel = (role: string) => {
-    return role === "moderator" ? "SC Member" : "General Member";
+    return role === "moderator" ? "General Member" : "Student";
   };
 
   const getStatusColor = (status: string) => {

@@ -21,9 +21,8 @@ const seedMembershipForms = async () => {
     const forms = [
       {
         formId: "sc-member-registration",
-        formTitle: "SC Member Registration",
-        formDescription:
-          "Apply to become a Sports Club Committee Member (Moderator role).",
+        formTitle: "General Member Registration",
+        formDescription: "Apply to become a General Member (Moderator role).",
         requireSunwayEmail: true,
         fields: [
           {
@@ -60,9 +59,8 @@ const seedMembershipForms = async () => {
       },
       {
         formId: "general-member-registration",
-        formTitle: "General Member Enrollment",
-        formDescription:
-          "Join the Sports Club as a General Member (User role).",
+        formTitle: "Student Enrollment",
+        formDescription: "Join the Sports Club as a Student (User role).",
         requireSunwayEmail: true,
         fields: [
           {

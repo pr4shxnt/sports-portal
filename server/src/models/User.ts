@@ -15,6 +15,10 @@ export interface IUser extends Document {
   team?: string; // ID of the team if they belong to one
   isBanned: boolean;
   createdAt: Date;
+  phone?: string;
+  studentId?: string;
+  lastProfileUpdate?: Date;
+  lastPasswordUpdate?: Date;
 }
 
 const UserSchema: Schema = new Schema(
@@ -29,6 +33,11 @@ const UserSchema: Schema = new Schema(
     },
     team: { type: Schema.Types.ObjectId, ref: "Team" },
     isBanned: { type: Boolean, default: false },
+    phone: { type: String },
+    studentId: { type: String },
+    lastProfileUpdate: { type: Date },
+    lastPasswordUpdate: { type: Date },
+    pushNotificationsEnabled: { type: Boolean, default: true },
   },
   { timestamps: true },
 );

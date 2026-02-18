@@ -198,19 +198,19 @@ const Announcements = () => {
               resetForm();
               setShowCreateModal(true);
             }}
-            className="px-4 py-2 bg-[#DD1D25] hover:bg-[#C11920] text-white rounded-full font-medium transition-colors flex items-center gap-2 text-sm shadow-sm"
+            className="p-2.5 sm:px-4 sm:py-2 bg-[#DD1D25] hover:bg-[#C11920] text-white rounded-full font-medium transition-all flex items-center justify-center gap-2 text-sm shadow-md"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4"
+              className="h-5 w-5 sm:h-4 sm:w-4"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2.5"
+              strokeWidth="3"
             >
               <path d="M12 5v14M5 12h14" />
             </svg>
-            Create announcement
+            <span className="hidden sm:inline">Create announcement</span>
           </button>
         )}
       </div>

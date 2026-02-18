@@ -25,7 +25,20 @@ export const protect = async (
         process.env.JWT_SECRET as string,
       ) as DecodedToken;
 
-      req.user = (await User.findById(decoded.id).select("-password")) as IUser;
+      const user = await User.findById(decoded.id).select("-password");
+      if (!user) {
+        return res
+          .status(401)
+          .json({ message: "Not authorized, user not found" });
+      }
+
+      if (user.isBanned) {
+        return res
+          .status(403)
+          .json({ message: "Your account has been banned." });
+      }
+
+      req.user = user as IUser;
       next();
     } catch (error) {
       console.error(error);

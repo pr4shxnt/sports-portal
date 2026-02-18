@@ -65,4 +65,28 @@ export const equipmentService = {
     const response = await api.post(`/equipment/transfer/${id}`, data);
     return response.data;
   },
+
+  // Force Return (Admin)
+  forceReturn: async (id: string): Promise<Responsibility> => {
+    const response = await api.post<Responsibility>(
+      `/equipment/responsibilities/${id}/force-return`,
+    );
+    return response.data;
+  },
+
+  // Reports
+  getChainOfCustodyReport: async (): Promise<Responsibility[]> => {
+    const response = await api.get<Responsibility[]>(
+      "/equipment/report/chain-of-custody",
+    );
+    return response.data;
+  },
+
+  // Get Waitlist
+  getWaitlist: async (equipmentId: string): Promise<Responsibility[]> => {
+    const response = await api.get<Responsibility[]>(
+      `/equipment/waitlist/${equipmentId}`,
+    );
+    return response.data;
+  },
 };

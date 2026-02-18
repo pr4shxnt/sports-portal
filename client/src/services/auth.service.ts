@@ -13,6 +13,15 @@ export const authService = {
     return response.data;
   },
 
+  // Google Login
+  googleLogin: async (params: {
+    tokenId?: string;
+    accessToken?: string;
+  }): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>("/auth/google", params);
+    return response.data;
+  },
+
   // Register
   register: async (data: RegisterData): Promise<AuthResponse> => {
     const response = await api.post<AuthResponse>("/auth/register", data);

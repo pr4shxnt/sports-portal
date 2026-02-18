@@ -8,6 +8,7 @@ const Events = () => {
     title: string;
     description: string;
     date: string;
+    endDate?: string;
     location: string;
     time?: string;
     participants: string[];
@@ -35,14 +36,14 @@ const Events = () => {
   }, []);
 
   const upcomingEvents = events.filter(
-    (event) => new Date(event.date) > new Date(),
+    (event) => new Date(event.endDate || event.date) >= new Date(),
   );
   const pastEvents = events.filter(
-    (event) => new Date(event.date) <= new Date(),
+    (event) => new Date(event.endDate || event.date) < new Date(),
   );
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
           Upcoming Events

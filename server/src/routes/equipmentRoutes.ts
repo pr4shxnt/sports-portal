@@ -7,6 +7,10 @@ import {
   requestEquipment,
   getResponsibilities,
   updateResponsibilityStatus,
+  transferEquipment,
+  forceReturn,
+  getChainOfCustodyReport,
+  getWaitlist,
 } from "../controllers/equipmentController.js";
 import { protect, authorize } from "../middlewares/authMiddleware.js";
 import { UserRole } from "../models/User.js";
@@ -27,6 +31,13 @@ router.put(
 );
 router.delete("/:id", authorize(UserRole.ADMIN), deleteEquipment);
 
+// Reports
+router.get(
+  "/report/chain-of-custody",
+  authorize(UserRole.ADMIN, UserRole.SUPERUSER),
+  getChainOfCustodyReport,
+);
+
 // Responsibilities / Requests
 router.post("/request", requestEquipment); // All users
 router.get("/responsibilities", getResponsibilities); // Filtered inside controller
@@ -34,6 +45,15 @@ router.put(
   "/responsibilities/:id",
   authorize(UserRole.ADMIN, UserRole.SUPERUSER, UserRole.MODERATOR),
   updateResponsibilityStatus,
+);
+
+// Actions
+router.get("/waitlist/:id", getWaitlist); // View waitlist for an item (Any user can see who is waiting?)
+router.post("/transfer/:id", transferEquipment); // Student transferring their responsibility
+router.post(
+  "/responsibilities/:id/force-return",
+  authorize(UserRole.ADMIN, UserRole.SUPERUSER),
+  forceReturn,
 );
 
 export default router;
