@@ -1,6 +1,5 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import LoginForm from "./components/no_auth/Login";
-import SignupForm from "./components/no_auth/Signup";
 import DynamicForm from "./components/no_auth/open_forms/DynamicForm";
 import Home from "./pages/Home";
 import { store } from "./store/store";
@@ -114,10 +113,7 @@ const router = createBrowserRouter([
     path: "/login",
     element: <LoginForm />,
   },
-  {
-    path: "/signup",
-    element: <SignupForm />,
-  },
+
   {
     path: "/",
     children: [

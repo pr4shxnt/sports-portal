@@ -7,7 +7,9 @@ import User, { UserRole } from "../models/User.js";
 // @access  Admin/Superuser/Moderator
 export const getTeams = async (req: Request, res: Response) => {
   try {
-    const teams = await Team.find({}).populate("executive", "name email");
+    const teams = await Team.find({
+      event: { $exists: true, $ne: null },
+    }).populate("executive", "name email");
     res.json(teams);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
@@ -28,7 +30,16 @@ export const getMyTeam = async (req: Request, res: Response) => {
       .populate("executive", "name email")
       .populate("event");
 
-    res.json(teams);
+    // Filter out teams if the event doesn't exist or has ended
+    const filteredTeams = teams.filter((team) => {
+      const event = team.event as any;
+      if (!event) return false;
+
+      const eventEndDate = event.endDate || event.date;
+      return new Date(eventEndDate) >= new Date();
+    });
+
+    res.json(filteredTeams);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
   }

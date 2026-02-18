@@ -55,8 +55,8 @@ export const sendUserCredentialsEmail = async (
   const roleLabels: Record<string, string> = {
     admin: "Executive",
     superuser: "Staff",
-    moderator: "SC Member",
-    user: "General Member",
+    moderator: "General Member",
+    user: "Student",
   };
 
   const roleLabel = roleLabels[role] || "Member";
@@ -117,8 +117,8 @@ export const sendMembershipApplicationEmail = async (
 ) => {
   const roleLabel =
     appliedRole === "moderator"
-      ? "Sports Club committee member's position"
-      : "Normal member position";
+      ? "General member position"
+      : "Student position";
 
   const mailOptions = {
     from: `"Sports Club Portal" <${process.env.EMAIL_USER}>`,
@@ -159,10 +159,7 @@ export const sendMembershipStatusEmail = async (
   appliedRole: string,
   note?: string,
 ) => {
-  const roleLabel =
-    appliedRole === "moderator"
-      ? "Sports Club committee member"
-      : "Normal member";
+  const roleLabel = appliedRole === "moderator" ? "General member" : "Student";
 
   const subject =
     status === "approved"

@@ -209,6 +209,20 @@ export const submitForm = async (req: Request, res: Response) => {
         });
       }
     }
+    // Check for duplicate submission by email for this specific form
+    if (req.body.email) {
+      const existingSubmission = await FormSubmission.findOne({
+        form: form._id,
+        "data.email": req.body.email.toLowerCase(),
+      });
+
+      if (existingSubmission) {
+        return res.status(400).json({
+          message:
+            "You have already submitted a form for this event with this email address.",
+        });
+      }
+    }
 
     const submission = await FormSubmission.create({
       form: form._id,
@@ -372,49 +386,56 @@ export const updateSubmissionStatus = async (req: Request, res: Response) => {
         JSON.stringify(members, null, 2),
       );
 
-      // Create team from submission data
-      const team = await Team.create({
-        name:
-          formData.team_name || formData.full_name || formData.name || "Team",
-        sport: (submission.form as any).formTitle.includes("Futsal")
-          ? "Futsal"
-          : (submission.form as any).formTitle.includes("Basketball")
-            ? "Basketball"
-            : (submission.form as any).formTitle.includes("Chess")
-              ? "Chess"
-              : (submission.form as any).formTitle.includes("Pool")
-                ? "Pool"
-                : (submission.form as any).formTitle.includes("Badminton")
-                  ? "Badminton"
-                  : (submission.form as any).formTitle.includes("Table Tennis")
-                    ? "Table Tennis"
-                    : "General",
-        teamType:
-          (submission.form as any).formId === "registration"
-            ? TeamType.MEMBER
-            : TeamType.EVENT,
-        formSubmission: submission._id,
-        members: members,
-      });
-
-      console.log("[Team Creation] Team created successfully:", team._id);
-
-      // Link team to event if applicable
+      // Create team from submission data ONLY if a matching event exists
       const eventSlug = (submission.form as any).formId;
       const event = await Event.findOne({ slug: eventSlug });
 
       if (event) {
-        team.event = event._id as any;
-        await team.save();
+        const team = await Team.create({
+          name:
+            formData.team_name || formData.full_name || formData.name || "Team",
+          sport: (submission.form as any).formTitle.includes("Futsal")
+            ? "Futsal"
+            : (submission.form as any).formTitle.includes("Basketball")
+              ? "Basketball"
+              : (submission.form as any).formTitle.includes("Chess")
+                ? "Chess"
+                : (submission.form as any).formTitle.includes("Pool")
+                  ? "Pool"
+                  : (submission.form as any).formTitle.includes("Badminton")
+                    ? "Badminton"
+                    : (submission.form as any).formTitle.includes(
+                          "Table Tennis",
+                        )
+                      ? "Table Tennis"
+                      : "General",
+          teamType:
+            (submission.form as any).formId === "registration"
+              ? TeamType.MEMBER
+              : TeamType.EVENT,
+          formSubmission: submission._id,
+          members: members,
+          event: event._id as any,
+        });
+
+        console.log("[Team Creation] Team created successfully:", team._id);
 
         event.registeredTeams.push(team._id as any);
         await event.save();
 
         console.log("[Team Creation] Team linked to event:", event.title);
+
+        await submission.populate("reviewedBy", "name email");
+        return res.json({ submission, team });
+      } else {
+        console.log(
+          "[Team Creation] Skipping team creation: No matching event found for formId:",
+          eventSlug,
+        );
       }
 
       await submission.populate("reviewedBy", "name email");
-      return res.json({ submission, team });
+      return res.json(submission);
     }
 
     await submission.populate("reviewedBy", "name email");

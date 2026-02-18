@@ -32,11 +32,12 @@ const Team = () => {
 
         const now = new Date();
         teams.forEach((team: any) => {
-          // Rule: If team has an event with an endDate, only show if not ended
-          if (team.event && team.event.endDate) {
-            const eventEnd = new Date(team.event.endDate);
-            if (now > eventEnd) return; // Skip this team
-          }
+          // Filter out teams if the event doesn't exist or has ended
+          if (!team.event) return;
+
+          const event = team.event;
+          const eventEndDate = event.endDate || event.date;
+          if (new Date(eventEndDate) < now) return;
 
           // Add members
           if (team.members && Array.isArray(team.members)) {

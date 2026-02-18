@@ -8,6 +8,7 @@ const AllEvents = () => {
     title: string;
     description: string;
     date: string;
+    endDate?: string;
     location: string;
     time?: string;
     participants: string[];
@@ -35,10 +36,10 @@ const AllEvents = () => {
   }, []);
 
   const upcomingEvents = events.filter(
-    (event) => new Date(event.date) > new Date(),
+    (event) => new Date(event.endDate || event.date) >= new Date(),
   );
   const pastEvents = events.filter(
-    (event) => new Date(event.date) <= new Date(),
+    (event) => new Date(event.endDate || event.date) < new Date(),
   );
 
   return (
