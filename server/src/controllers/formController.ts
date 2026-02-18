@@ -394,21 +394,12 @@ export const updateSubmissionStatus = async (req: Request, res: Response) => {
         const team = await Team.create({
           name:
             formData.team_name || formData.full_name || formData.name || "Team",
-          sport: (submission.form as any).formTitle.includes("Futsal")
-            ? "Futsal"
-            : (submission.form as any).formTitle.includes("Basketball")
-              ? "Basketball"
-              : (submission.form as any).formTitle.includes("Chess")
-                ? "Chess"
-                : (submission.form as any).formTitle.includes("Pool")
-                  ? "Pool"
-                  : (submission.form as any).formTitle.includes("Badminton")
-                    ? "Badminton"
-                    : (submission.form as any).formTitle.includes(
-                          "Table Tennis",
-                        )
-                      ? "Table Tennis"
-                      : "General",
+          sport: (submission.form as any).formTitle
+            .replace(/Registration/gi, "")
+            .replace(/Form/gi, "")
+            .replace(/Enrollment/gi, "")
+            .replace(/\s\s+/g, " ")
+            .trim(),
           teamType:
             (submission.form as any).formId === "registration"
               ? TeamType.MEMBER
