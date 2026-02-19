@@ -137,10 +137,14 @@ export const updateForm = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Form not found" });
     }
 
-    // Restriction: Moderators cannot update registration form
+    // Restriction: Moderators cannot update registration/membership forms
+    const membershipFormIdsList = [
+      "student-registration",
+      "general-member-registration",
+    ];
     if (
       req.user!.role === UserRole.MODERATOR &&
-      req.params.formId === "registration"
+      membershipFormIdsList.includes(req.params.formId)
     ) {
       return res.status(403).json({
         message:
@@ -252,6 +256,51 @@ export const submitForm = async (req: Request, res: Response) => {
         });
       }
     }
+    const membershipFormIds = [
+      "general-member-registration",
+      "student-registration",
+    ];
+    const isMembershipSubmission = membershipFormIds.includes(
+      req.params.formId,
+    );
+
+    if (isMembershipSubmission) {
+      // --- Membership Registration path: only save to MemberRegistration ---
+      const { name, email, phone, collegeId, sportsInterests } = req.body;
+      const appliedRole =
+        req.params.formId === "general-member-registration"
+          ? AppliedRole.SC_MEMBER
+          : AppliedRole.GENERAL_MEMBER;
+
+      const existingMember = await MemberRegistration.findOne({
+        $or: [{ email }, { collegeId }],
+      });
+
+      if (existingMember) {
+        return res.status(400).json({
+          message:
+            "You have already submitted a membership application with this email address or college ID.",
+        });
+      }
+
+      const registration = await MemberRegistration.create({
+        name,
+        email,
+        phone,
+        collegeId,
+        appliedRole,
+        sportsInterests,
+        status: RegistrationStatus.PENDING,
+      });
+
+      // Send confirmation email
+      await sendMembershipApplicationEmail(email, name, appliedRole);
+
+      return res.status(201).json(registration);
+    }
+
+    // --- Regular form path: save to FormSubmission ---
+
     // Check for duplicate submission by email for this specific form
     if (req.body.email) {
       const existingSubmission = await FormSubmission.findOne({
@@ -293,31 +342,6 @@ export const submitForm = async (req: Request, res: Response) => {
       status: SubmissionStatus.PENDING,
     });
 
-    const membershipFormIds = [
-      "sc-member-registration",
-      "general-member-registration",
-    ];
-    if (membershipFormIds.includes(req.params.formId)) {
-      const { name, email, phone, collegeId, sportsInterests } = req.body;
-      const appliedRole =
-        req.params.formId === "sc-member-registration"
-          ? AppliedRole.SC_MEMBER
-          : AppliedRole.GENERAL_MEMBER;
-
-      await MemberRegistration.create({
-        name,
-        email,
-        phone,
-        collegeId,
-        appliedRole,
-        sportsInterests,
-        status: RegistrationStatus.PENDING,
-      });
-
-      // Send confirmation email
-      await sendMembershipApplicationEmail(email, name, appliedRole);
-    }
-
     res.status(201).json(submission);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
@@ -339,7 +363,8 @@ export const getFormSubmissions = async (req: Request, res: Response) => {
     // Restriction: Moderators cannot view registration form submissions
     if (
       req.user!.role === UserRole.MODERATOR &&
-      req.params.formId === "registration"
+      (req.params.formId === "student-registration" ||
+        req.params.formId === "general-member-registration")
     ) {
       return res.status(403).json({
         message:
@@ -511,11 +536,20 @@ export const getAllSubmissions = async (req: Request, res: Response) => {
       filter.status = status;
     }
 
-    // Restriction: If moderator, exclude registration form submissions
+    // Restriction: If moderator, exclude membership form submissions
     if (req.user!.role === UserRole.MODERATOR) {
-      const dbForm = await Form.findOne({ formId: "registration" });
-      if (dbForm) {
-        filter.form = { $ne: dbForm._id };
+      const membershipForms = await Form.find({
+        formId: {
+          $in: [
+            "registration",
+            "student-registration",
+            "general-member-registration",
+          ],
+        },
+      }).select("_id");
+      const membershipFormIds = membershipForms.map((f) => f._id);
+      if (membershipFormIds.length > 0) {
+        filter.form = { $nin: membershipFormIds };
       }
     }
 
