@@ -159,7 +159,7 @@ export default function LoginForm() {
           <p className="mt-6 text-center text-sm text-neutral-400">
             Apply for membership via the{" "}
             <a
-              href={`${window.location.origin}/form/general-member-registration`}
+              href={`${window.location.origin}/form/atudent-registration`}
               className="font-medium text-white hover:underline"
             >
               Portal Registration Form
