@@ -30,84 +30,88 @@ import { Toaster } from "react-hot-toast";
 const router = createBrowserRouter([
   {
     path: "/dashboard",
-    element: (
-      <ProtectedRoute>
-        <RootComp />
-      </ProtectedRoute>
-    ),
     errorElement: <ErrorPage />,
     children: [
       {
-        index: true,
-        element: <Announcements />,
-      },
-      {
-        path: "events",
-        element: <Events />,
-      },
-      {
-        path: "events/:id",
-        element: <EventDetails />,
-      },
-      {
-        path: "equipments",
-        element: <RequestEquipments />,
-      },
-      {
-        path: "team",
-        element: <Team />,
-      },
-      {
-        path: "all-teams",
-        element: <AllTeams />,
-      },
-      {
-        path: "profile",
-        element: <Profile />,
-      },
-      {
-        path: "forms",
-        element: <Forms />,
-      },
-      {
-        path: "bug-report",
-        element: <ReportBug />,
-      },
-      {
-        path: "feedback",
-        element: <Feedback />,
-      },
-      {
-        path: "my-events",
-        element: <MyEvents />,
-      },
-      {
-        path: "all-events",
-        element: <AllEvents />,
-      },
-      {
-        path: "members",
-        element: <Members />,
-      },
-      {
-        path: "membership-requests",
-        element: <MemberRegistrations />,
-      },
-      {
-        path: "settings",
-        element: <Settings />,
-      },
-      {
-        path: "announcements",
-        element: <Announcements />,
-      },
-      {
-        path: "inventory",
-        element: <Inventory />,
-      },
-      {
-        path: "user-feedback",
-        element: <FeedbackList />,
+        element: (
+          <ProtectedRoute>
+            <RootComp />
+          </ProtectedRoute>
+        ),
+        children: [
+          {
+            index: true,
+            element: <Announcements />,
+          },
+          {
+            path: "events",
+            element: <Events />,
+          },
+          {
+            path: "events/:id",
+            element: <EventDetails />,
+          },
+          {
+            path: "equipments",
+            element: <RequestEquipments />,
+          },
+          {
+            path: "team",
+            element: <Team />,
+          },
+          {
+            path: "all-teams",
+            element: <AllTeams />,
+          },
+          {
+            path: "profile",
+            element: <Profile />,
+          },
+          {
+            path: "forms",
+            element: <Forms />,
+          },
+          {
+            path: "bug-report",
+            element: <ReportBug />,
+          },
+          {
+            path: "feedback",
+            element: <Feedback />,
+          },
+          {
+            path: "my-events",
+            element: <MyEvents />,
+          },
+          {
+            path: "all-events",
+            element: <AllEvents />,
+          },
+          {
+            path: "members",
+            element: <Members />,
+          },
+          {
+            path: "membership-requests",
+            element: <MemberRegistrations />,
+          },
+          {
+            path: "settings",
+            element: <Settings />,
+          },
+          {
+            path: "announcements",
+            element: <Announcements />,
+          },
+          {
+            path: "inventory",
+            element: <Inventory />,
+          },
+          {
+            path: "user-feedback",
+            element: <FeedbackList />,
+          },
+        ],
       },
       {
         path: "*",

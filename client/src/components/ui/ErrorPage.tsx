@@ -64,7 +64,7 @@ const ErrorPage: React.FC = () => {
       </div>
 
       <div className="absolute bottom-12 text-[10px] text-zinc-500 font-bold uppercase tracking-[0.4em] opacity-40">
-        Sunway Sports Resource Center &bull; Portal 2.0
+        Sunway Students Representative Council Sports Club &bull; Portal 1.0
       </div>
     </div>
   );

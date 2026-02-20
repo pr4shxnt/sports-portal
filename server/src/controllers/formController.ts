@@ -286,6 +286,7 @@ export const submitForm = async (req: Request, res: Response) => {
 
       const registration = await MemberRegistration.create({
         name,
+        
         email,
         phone,
         collegeId,
