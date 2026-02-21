@@ -259,11 +259,6 @@ export function Sidebar({ className }: SidebarProps) {
           href: "/dashboard/all-events",
         },
         {
-          label: "Registered Events",
-          icon: CalendarIcon,
-          href: "/dashboard/events",
-        },
-        {
           label: "Manage Members",
           icon: UsersIcon,
           href: "/dashboard/members",
