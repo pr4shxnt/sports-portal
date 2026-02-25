@@ -24,6 +24,7 @@ import Inventory from "./components/auth_client/pages/Inventory";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import FeedbackList from "./components/auth_client/pages/FeedbackList";
+import MeetingManagement from "./components/auth_client/pages/MeetingManagement";
 import { Toaster } from "react-hot-toast";
 
 const router = createBrowserRouter([
@@ -105,6 +106,10 @@ const router = createBrowserRouter([
           {
             path: "user-feedback",
             element: <FeedbackList />,
+          },
+          {
+            path: "meetings",
+            element: <MeetingManagement />,
           },
         ],
       },

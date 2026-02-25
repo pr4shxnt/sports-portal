@@ -225,6 +225,11 @@ export function Sidebar({ className }: SidebarProps) {
           href: "/dashboard/all-events",
         },
         {
+          label: "Meetings",
+          icon: CalendarIcon,
+          href: "/dashboard/meetings",
+        },
+        {
           label: "Feedback",
           icon: MessageSquareIcon,
           href: "/dashboard/feedback",
@@ -257,6 +262,11 @@ export function Sidebar({ className }: SidebarProps) {
           label: "All Events",
           icon: CalendarIcon,
           href: "/dashboard/all-events",
+        },
+        {
+          label: "Meetings",
+          icon: CalendarIcon,
+          href: "/dashboard/meetings",
         },
         {
           label: "Manage Members",
@@ -300,6 +310,11 @@ export function Sidebar({ className }: SidebarProps) {
           label: "All Events",
           icon: CalendarIcon,
           href: "/dashboard/all-events",
+        },
+        {
+          label: "Meetings",
+          icon: CalendarIcon,
+          href: "/dashboard/meetings",
         },
         {
           label: "View Members",
@@ -354,6 +369,11 @@ export function Sidebar({ className }: SidebarProps) {
           label: "All Events",
           icon: CalendarIcon,
           href: "/dashboard/all-events",
+        },
+        {
+          label: "Meetings",
+          icon: CalendarIcon,
+          href: "/dashboard/meetings",
         },
         {
           label: "View Members",
