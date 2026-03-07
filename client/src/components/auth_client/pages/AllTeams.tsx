@@ -35,16 +35,19 @@ const AllTeams = () => {
   const [preSelectedSport, setPreSelectedSport] = useState<string>("");
   const [preSelectedEventId, setPreSelectedEventId] = useState<string>("");
   const [events, setEvents] = useState<any[]>([]);
+  const [draws, setDraws] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [teamsRes, eventsRes] = await Promise.all([
+        const [teamsRes, eventsRes, drawsRes] = await Promise.all([
           api.get("/teams"),
           api.get("/events"),
+          api.get("/draws"),
         ]);
         setTeams(teamsRes.data);
         setEvents(eventsRes.data);
+        setDraws(drawsRes.data);
       } catch (err: any) {
         console.error("Error fetching data:", err);
         setError("Failed to load teams");
@@ -133,24 +136,53 @@ const AllTeams = () => {
                     {sportTeams.length} Total
                   </span>
                 </div>
-                <button
-                  onClick={() => {
-                    const sportLower = sport.toLowerCase();
-                    const matchingEvent = events.find(
-                      (e) =>
-                        e.slug === sportLower ||
-                        e.title.toLowerCase().includes(sportLower),
+                {(() => {
+                  const matchingEventForDraw = events.find(
+                    (e) =>
+                      e.slug === sport.toLowerCase() ||
+                      e.title.toLowerCase().includes(sport.toLowerCase()),
+                  );
+
+                  // Check if a draw exists for this sport or event
+                  const hasExistingDraw = draws.some(
+                    (d) =>
+                      d.sport === sport ||
+                      (matchingEventForDraw &&
+                        d.eventId === matchingEventForDraw._id),
+                  );
+
+                  if (hasExistingDraw) {
+                    return (
+                      <button
+                        disabled
+                        className="px-3 py-1 bg-zinc-300 dark:bg-zinc-700 text-zinc-500 text-[10px] font-bold uppercase tracking-wider rounded-md cursor-not-allowed shadow-none"
+                      >
+                        Draw Exists
+                      </button>
                     );
-                    setPreSelectedSport(sport);
-                    if (matchingEvent) {
-                      setPreSelectedEventId(matchingEvent._id);
-                    }
-                    setIsDrawModalOpen(true);
-                  }}
-                  className="px-3 py-1 bg-[#DD1D25] text-white text-[10px] font-bold uppercase tracking-wider rounded-md hover:bg-[#C41920] transition-all transform active:scale-95 shadow-sm"
-                >
-                  Draw Teams
-                </button>
+                  }
+
+                  return (
+                    <button
+                      onClick={() => {
+                        const sportLower = sport.toLowerCase();
+                        const matchingEvent = events.find(
+                          (e) =>
+                            e.slug === sportLower ||
+                            e.title.toLowerCase().includes(sportLower),
+                        );
+                        setPreSelectedSport(sport);
+                        if (matchingEvent) {
+                          setPreSelectedEventId(matchingEvent._id);
+                        }
+                        setIsDrawModalOpen(true);
+                      }}
+                      className="px-3 py-1 bg-[#DD1D25] text-white text-[10px] font-bold uppercase tracking-wider rounded-md hover:bg-[#C41920] transition-all transform active:scale-95 shadow-sm"
+                    >
+                      Draw Teams
+                    </button>
+                  );
+                })()}
               </div>
             </div>
 

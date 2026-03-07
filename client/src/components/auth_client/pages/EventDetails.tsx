@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "../../../services/api";
 import { useAppSelector } from "../../../store/hooks";
 import MatchScoreModal from "./MatchScoreModal";
 import DatePicker from "react-datepicker";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
+import { DrawPdfTemplate } from "./DrawPdfTemplate";
 import "react-datepicker/dist/react-datepicker.css";
 import "../../../styles/datepicker-custom.css"; // We'll create this for custom dark mode styles
 
@@ -36,8 +39,9 @@ interface Draw {
   sport: string;
   teamSize?: number;
   drawnTeams: Team[];
+  groupings?: { name: string; teams: Team[] }[]; // Group Stage groupings
   matchResults?: Record<string, string>;
-  matchScores?: Record<string, string>; // Added matchScores
+  matchScores?: Record<string, string>;
   createdAt: string;
 }
 
@@ -69,6 +73,10 @@ const EventDetails = () => {
     team2: any;
     currentScore: string;
   } | null>(null);
+
+  // PDF Download State & Ref
+  const drawContainerRef = React.useRef<HTMLDivElement>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -130,6 +138,113 @@ const EventDetails = () => {
 
   const isAdmin = user?.role === "admin";
   const hasStarted = event && new Date() >= new Date(event.date);
+
+  const handleDownloadPDF = async () => {
+    if (!drawContainerRef.current) return;
+    setIsDownloading(true);
+
+    try {
+      const container = drawContainerRef.current;
+
+      // Temporarily remove max-height/overflow for full capture if needed
+      const originalStyle = container.style.cssText;
+      container.style.height = "auto";
+      container.style.overflow = "visible";
+
+      // html2canvas config
+      const canvas = await html2canvas(container, {
+        scale: 2, // Higher scale for better resolution
+        useCORS: true,
+        logging: false,
+        backgroundColor: document.documentElement.classList.contains("dark")
+          ? "#18181b" // zinc-900 for dark mode background
+          : "#ffffff",
+        windowWidth: container.scrollWidth, // Ensure we capture full width for scrolling brackets
+        onclone: (documentClone) => {
+          // html2canvas crashes resolving OKLCH and OKLAB colors, which might be added by Tailwind v4.
+          // We manually find elements in the clone with OKLCH/OKLAB variables and replace them.
+          const elements = documentClone.getElementsByTagName("*");
+          for (let i = 0; i < elements.length; i++) {
+            const el = elements[i] as HTMLElement;
+            const style = window.getComputedStyle(el);
+            // Replace commonly problematic properties if they contain oklch or oklab
+            const propsToCheck = [
+              "color",
+              "backgroundColor",
+              "borderColor",
+              "boxShadow",
+              "backgroundImage",
+            ];
+
+            // Note: Since this is on the clone, getComputedStyle might not accurately reflect the original
+            // if it relies on complex stylesheets. A safer fallback is modifying the inline style or
+            // ensuring Tailwind isn't injecting oklch during the capture process.
+            // But we can forcefully override the style object directly if it has an oklch string
+
+            for (const prop of propsToCheck) {
+              const val = style.getPropertyValue(
+                prop.replace(/([A-Z])/g, "-$1").toLowerCase(),
+              );
+              if (val && (val.includes("oklch") || val.includes("oklab"))) {
+                el.style.setProperty(
+                  prop.replace(/([A-Z])/g, "-$1").toLowerCase(),
+                  "transparent",
+                  "important",
+                );
+              }
+            }
+            if (
+              el.style.cssText.includes("oklch") ||
+              el.style.cssText.includes("oklab")
+            ) {
+              el.style.cssText = el.style.cssText
+                .replace(/oklch\([^)]+\)/g, "rgba(0,0,0,0.1)")
+                .replace(/oklab\([^)]+\)/g, "rgba(0,0,0,0.1)");
+            }
+          }
+        },
+      });
+
+      container.style.cssText = originalStyle; // Restore styles
+
+      const pdf = new jsPDF({
+        orientation: canvas.width > canvas.height ? "l" : "p",
+        unit: "pt",
+        format: "a4",
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      // Scale to fit width primarily
+      const widthScale = pdfWidth / canvas.width;
+      const imgWidth = pdfWidth;
+      const imgHeight = canvas.height * widthScale;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+      const imgData = canvas.toDataURL("image/jpeg", 1.0);
+
+      // Add first page
+      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      // New pages if needed
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      pdf.save(`${event?.title?.replace(/\s+/g, "_") || "Event"}_Draws.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   if (loading)
     return <div className="p-6 text-center text-zinc-500">Loading...</div>;
@@ -329,9 +444,40 @@ const EventDetails = () => {
         {/* Draw Results Section - Full Width */}
         {!isEditing && draws.length > 0 && (
           <div className="p-6 border-t border-zinc-100 dark:border-zinc-800">
-            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-6 flex items-center gap-2">
-              🏆 Tournament Brackets & Draws
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+                🏆 Tournament Brackets & Draws
+              </h2>
+              <button
+                onClick={handleDownloadPDF}
+                disabled={isDownloading}
+                className="flex items-center gap-2 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg text-sm font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-70"
+              >
+                {isDownloading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      className="w-4 h-4"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0016.5 9h-1.875a1.875 1.875 0 01-1.875-1.875V5.25A3.75 3.75 0 009 1.5H5.625zM7.5 15a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5A.75.75 0 017.5 15zm.75 2.25a.75.75 0 000 1.5H12a.75.75 0 000-1.5H8.25z"
+                        clipRule="evenodd"
+                      />
+                      <path d="M12.971 1.816A5.23 5.23 0 0114.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 013.434 1.279 9.768 9.768 0 00-6.963-6.963z" />
+                    </svg>
+                    Download PDF
+                  </>
+                )}
+              </button>
+            </div>
 
             <div className="space-y-12">
               {draws.map((draw) => (
@@ -628,32 +774,232 @@ const EventDetails = () => {
                           <div className="flex items-center gap-3">
                             <div className="w-3 h-3 rounded border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30"></div>
                             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-                              BYE / To be determined
+                              To be determined
                             </span>
                           </div>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                      {draw.drawnTeams.map((team, idx) => (
-                        <div
-                          key={team._id}
-                          className="p-3 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-lg shadow-sm flex items-center gap-3"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-[#DD1D25] text-xs">
-                            {idx + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-zinc-900 dark:text-zinc-50 truncate">
-                              {team.name}
-                            </p>
-                            <p className="text-[10px] text-zinc-500 uppercase">
-                              {team.members.length} Players Team
-                            </p>
-                          </div>
-                        </div>
-                      ))}
+                    /* ─── GROUP STAGE ─── */
+                    <div className="space-y-8">
+                      {(() => {
+                        // Prefer groupings from DB; fall back to chunking drawnTeams
+                        const storedGroupings: {
+                          name: string;
+                          teams: any[];
+                        }[] =
+                          draw.groupings && draw.groupings.length > 0
+                            ? draw.groupings
+                            : (() => {
+                                const chunks: { name: string; teams: any[] }[] =
+                                  [];
+                                const all = draw.drawnTeams;
+                                for (let i = 0; i < all.length; i += 4) {
+                                  chunks.push({
+                                    name: String.fromCharCode(
+                                      65 + chunks.length,
+                                    ),
+                                    teams: all.slice(i, i + 4),
+                                  });
+                                }
+                                return chunks;
+                              })();
+
+                        const groupMatchId = (
+                          gName: string,
+                          t1: any,
+                          t2: any,
+                        ) => {
+                          const ids = [t1._id, t2._id].sort();
+                          return `group_${gName}_${ids[0]}_${ids[1]}`;
+                        };
+
+                        const computeStandings = (
+                          gName: string,
+                          groupTeams: any[],
+                        ) =>
+                          groupTeams
+                            .map((team) => {
+                              let P = 0,
+                                W = 0,
+                                L = 0,
+                                Pts = 0;
+                              groupTeams.forEach((opp) => {
+                                if (opp._id === team._id) return;
+                                const mid = groupMatchId(gName, team, opp);
+                                const result = draw.matchResults?.[mid];
+                                if (!result) return;
+                                P++;
+                                if (result === team._id) {
+                                  W++;
+                                  Pts += 1;
+                                } else L++;
+                              });
+                              return { team, P, W, L, Pts };
+                            })
+                            .sort((a, b) =>
+                              b.Pts !== a.Pts ? b.Pts - a.Pts : b.W - a.W,
+                            );
+
+                        return storedGroupings.map((group) => {
+                          const groupTeams: any[] = group.teams;
+                          const standings = computeStandings(
+                            group.name,
+                            groupTeams,
+                          );
+                          const matches: [any, any][] = [];
+                          for (let i = 0; i < groupTeams.length; i++)
+                            for (let j = i + 1; j < groupTeams.length; j++)
+                              matches.push([groupTeams[i], groupTeams[j]]);
+
+                          return (
+                            <div
+                              key={group.name}
+                              className="bg-zinc-50 dark:bg-zinc-800/10 rounded-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden"
+                            >
+                              <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900/60">
+                                <h3 className="text-lg font-black uppercase tracking-widest text-zinc-800 dark:text-zinc-100 flex items-center gap-2">
+                                  <span className="w-2.5 h-2.5 rounded-full bg-[#DD1D25]"></span>
+                                  Group {group.name}
+                                </h3>
+                                <span className="text-[10px] font-bold text-zinc-400 uppercase">
+                                  {groupTeams.length} Teams · {matches.length}{" "}
+                                  Matches
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-zinc-100 dark:divide-zinc-800">
+                                {/* Standings */}
+                                <div className="p-5">
+                                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3">
+                                    Standings
+                                  </h4>
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr>
+                                          <th className="pb-2 font-bold text-zinc-500 text-left pr-3 w-full">
+                                            Team
+                                          </th>
+                                          {["P", "W", "L", "Pts"].map((h) => (
+                                            <th
+                                              key={h}
+                                              className="pb-2 font-bold text-zinc-400 text-center px-1.5"
+                                            >
+                                              {h}
+                                            </th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                        {standings.map((row, ri) => (
+                                          <tr
+                                            key={row.team._id}
+                                            className={
+                                              ri < 2
+                                                ? "font-semibold text-zinc-900 dark:text-zinc-50"
+                                                : "text-zinc-400"
+                                            }
+                                          >
+                                            <td className="py-2 pr-3 truncate max-w-[110px]">
+                                              <span className="flex items-center gap-1.5">
+                                                {ri < 2 && (
+                                                  <span className="w-1.5 h-1.5 rounded-full bg-[#DD1D25] shrink-0"></span>
+                                                )}
+                                                {row.team.name}
+                                              </span>
+                                            </td>
+                                            <td className="py-2 text-center px-1.5">
+                                              {row.P}
+                                            </td>
+                                            <td className="py-2 text-center px-1.5 text-emerald-600 dark:text-emerald-400">
+                                              {row.W}
+                                            </td>
+                                            <td className="py-2 text-center px-1.5 text-red-500">
+                                              {row.L}
+                                            </td>
+                                            <td className="py-2 text-center px-1.5 font-black text-zinc-900 dark:text-zinc-50">
+                                              {row.Pts}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                  <p className="text-[9px] text-zinc-400 mt-3">
+                                    🔴 Top 2 advance · Win = 1 pt · Loss = 0 pts
+                                  </p>
+                                </div>
+
+                                {/* Match Schedule */}
+                                <div className="p-5">
+                                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3">
+                                    Fixtures ({matches.length})
+                                  </h4>
+                                  <div className="space-y-2">
+                                    {matches.map(([t1, t2], mi) => {
+                                      const mid = groupMatchId(
+                                        group.name,
+                                        t1,
+                                        t2,
+                                      );
+                                      const score = draw.matchScores?.[mid];
+                                      const result = draw.matchResults?.[mid];
+                                      const isPlayed = !!result;
+                                      const isDraw = result === "DRAW"; // Keep for potential future use, but not displayed
+                                      const isT1Win = result === t1._id;
+                                      const isT2Win = result === t2._id;
+                                      return (
+                                        <div
+                                          key={mi}
+                                          onClick={() =>
+                                            isAdmin &&
+                                            handleOpenScoreModal(
+                                              draw._id,
+                                              mid,
+                                              t1,
+                                              t2,
+                                              score || "",
+                                            )
+                                          }
+                                          className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all text-xs ${isAdmin ? "cursor-pointer hover:border-[#DD1D25]/40" : ""} ${isPlayed ? "border-zinc-200 dark:border-zinc-700/50 bg-white dark:bg-zinc-900" : "border-dashed border-zinc-200 dark:border-zinc-700 bg-transparent"}`}
+                                        >
+                                          <span
+                                            className={`flex-1 font-bold truncate text-right ${isT1Win ? "text-[#DD1D25]" : isDraw ? "text-zinc-600 dark:text-zinc-300" : "text-zinc-400"}`}
+                                          >
+                                            {t1.name}
+                                          </span>
+                                          <div className="shrink-0">
+                                            {score ? (
+                                              <span className="font-black bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-2 py-0.5 rounded text-[10px] tabular-nums">
+                                                {score}
+                                              </span>
+                                            ) : (
+                                              <span className="text-zinc-400 font-bold px-1">
+                                                vs
+                                              </span>
+                                            )}
+                                          </div>
+                                          <span
+                                            className={`flex-1 font-bold truncate ${isT2Win ? "text-[#DD1D25]" : isDraw ? "text-zinc-600 dark:text-zinc-300" : "text-zinc-400"}`}
+                                          >
+                                            {t2.name}
+                                          </span>
+                                          {isAdmin && !isPlayed && (
+                                            <span className="text-[9px] text-[#DD1D25] shrink-0 font-bold">
+                                              Set →
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   )}
                 </div>
@@ -672,6 +1018,10 @@ const EventDetails = () => {
           team1={selectedMatch.team1}
           team2={selectedMatch.team2}
           currentScore={selectedMatch.currentScore}
+          isGroupFormat={
+            draws.find((d) => d._id === selectedMatch.drawId)?.format ===
+            "Group"
+          }
           onUpdate={(newDraw) => {
             setDraws((prev) =>
               prev.map((d) => (d._id === newDraw._id ? newDraw : d)),
@@ -679,6 +1029,19 @@ const EventDetails = () => {
           }}
         />
       )}
+      {/* Off-screen PDF Export Template */}
+      <div
+        style={{
+          position: "fixed",
+          left: "-10000px",
+          top: "-10000px",
+          zIndex: -1000,
+        }}
+      >
+        <div ref={drawContainerRef}>
+          <DrawPdfTemplate draws={draws} eventTitle={event.title} />
+        </div>
+      </div>
     </div>
   );
 };

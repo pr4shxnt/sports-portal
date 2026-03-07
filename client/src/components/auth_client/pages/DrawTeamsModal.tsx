@@ -144,12 +144,28 @@ const DrawTeamsModal = ({
   const saveDraw = async () => {
     try {
       setIsSaving(true);
+
+      // Build groupings for Group format: [{name: "A", teams: [id1, id2...]}, ...]
+      let groupings: { name: string; teams: string[] }[] | undefined;
+      if (format === "Group") {
+        const chunkSize = 4;
+        groupings = [];
+        for (let i = 0; i < drawnTeams.length; i += chunkSize) {
+          const chunk = drawnTeams.slice(i, i + chunkSize);
+          groupings.push({
+            name: String.fromCharCode(65 + groupings.length), // A, B, C...
+            teams: chunk.map((t) => t._id),
+          });
+        }
+      }
+
       await api.post("/draws", {
         event: selectedEvent,
         format,
         sport: selectedSport,
         teamSize: format === "Group" ? teamSize : undefined,
         drawnTeams: drawnTeams.map((t) => t._id),
+        groupings,
       });
     } catch (error) {
       console.error("Error saving draw:", error);
@@ -341,25 +357,69 @@ const DrawTeamsModal = ({
       </div>
 
       <div className="max-h-96 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-        {drawnTeams.map((team, idx) => (
-          <div
-            key={team._id}
-            className="p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg flex items-center gap-4"
-          >
-            <div className="w-10 h-10 rounded-full bg-[#DD1D25] text-white flex items-center justify-center font-bold">
-              {idx + 1}
-            </div>
-            <div className="flex-1">
-              <div className="font-bold text-zinc-900 dark:text-zinc-50">
-                {team.name}
-              </div>
-              <div className="text-sm text-zinc-500">
-                {team.members.length} member{team.members.length > 1 ? "s" : ""}{" "}
-                • {team.sport}
-              </div>
-            </div>
+        {format === "Group" ? (
+          <div className="space-y-6">
+            {(() => {
+              const columns = [];
+              const chunkSize = 4;
+              for (let i = 0; i < drawnTeams.length; i += chunkSize) {
+                columns.push(drawnTeams.slice(i, i + chunkSize));
+              }
+
+              return columns.map((colTeams, idx) => (
+                <div
+                  key={idx}
+                  className="bg-zinc-50 dark:bg-zinc-800/20 rounded-xl p-4 border border-zinc-100 dark:border-zinc-800 text-left"
+                >
+                  <h4 className="text-sm font-bold uppercase mb-3 text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
+                    Group {String.fromCharCode(65 + idx)}
+                  </h4>
+                  <div className="grid grid-cols-1 gap-2">
+                    {colTeams.map((team, tIdx) => (
+                      <div
+                        key={team._id}
+                        className="p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700/50 rounded-lg flex items-center gap-3"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-[#DD1D25] text-white flex items-center justify-center font-bold text-xs opacity-80">
+                          {tIdx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <p className="font-bold text-zinc-900 dark:text-zinc-50 truncate text-sm">
+                            {team.name}
+                          </p>
+                          <p className="text-[10px] text-zinc-500 uppercase">
+                            {team.members.length} Players Team
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ));
+            })()}
           </div>
-        ))}
+        ) : (
+          drawnTeams.map((team, idx) => (
+            <div
+              key={team._id}
+              className="p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg flex items-center gap-4 text-left"
+            >
+              <div className="w-10 h-10 rounded-full bg-[#DD1D25] text-white flex items-center justify-center font-bold">
+                {idx + 1}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-zinc-900 dark:text-zinc-50 text-lg truncate mb-1">
+                  {team.name}
+                </p>
+                <div className="flex items-center gap-2 text-xs text-zinc-500">
+                  <span>{team.sport}</span>
+                  <span>•</span>
+                  <span>{team.members.length} Members</span>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <div className="flex gap-3">

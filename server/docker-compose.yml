@@ -1,0 +1,26 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: sports-club-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: sports-club-server
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./server/.env
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/sports_club
+      - PORT=8080
+    depends_on:
+      - mongodb
+
+volumes:
+  mongodb_data:

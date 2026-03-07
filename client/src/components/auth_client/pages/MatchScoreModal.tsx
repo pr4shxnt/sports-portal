@@ -16,6 +16,7 @@ interface MatchScoreModalProps {
   team2: Team | null;
   currentScore: string;
   onUpdate: (newDrawData: any) => void;
+  isGroupFormat?: boolean; // If true, draws are allowed
 }
 
 const MatchScoreModal = ({
@@ -27,6 +28,7 @@ const MatchScoreModal = ({
   team2,
   currentScore,
   onUpdate,
+  isGroupFormat = false,
 }: MatchScoreModalProps) => {
   const [score1, setScore1] = useState("0");
   const [score2, setScore2] = useState("0");
@@ -73,34 +75,32 @@ const MatchScoreModal = ({
     const s1 = Number(score1);
     const s2 = Number(score2);
 
-    if (s1 === s2) {
+    if (s1 === s2 && !isGroupFormat) {
       alert(
         "Match cannot end in a draw in Knockout stage. Please play extra time or penalties to determine a winner.",
       );
       return;
     }
 
-    const winner = s1 > s2 ? team1 : team2;
-    if (!winner) return; // Should not happen if team1/team2 exist
+    const isDraw = s1 === s2;
+    const winner = isDraw ? null : s1 > s2 ? team1 : team2;
 
-    if (
-      !window.confirm(
-        `Final Score: ${team1?.name} (${s1}) - (${s2}) ${team2?.name}\n\nWinner: ${winner.name}\n\nAre you sure you want to finalize this match? This action cannot be undone.`,
-      )
-    )
-      return;
+    const confirmMsg = isDraw
+      ? `Final Score: ${team1?.name} (${s1}) - (${s2}) ${team2?.name}\n\nResult: DRAW\n\nAre you sure you want to finalize this match?`
+      : `Final Score: ${team1?.name} (${s1}) - (${s2}) ${team2?.name}\n\nWinner: ${winner?.name}\n\nAre you sure you want to finalize this match? This action cannot be undone.`;
+
+    if (!window.confirm(confirmMsg)) return;
 
     setIsFinalizing(true);
     try {
-      // 1. Update winner
-      const res = await api.patch(`/draws/${drawId}/results`, {
-        matchResults: { [matchId]: winner._id },
-      });
-
-      // 2. Also ensure final score is saved
       const scoreString = `${score1} - ${score2}`;
+      // Save score first
       await api.patch(`/draws/${drawId}/score`, {
         matchScores: { [matchId]: scoreString },
+      });
+      // Save winner (or "DRAW")
+      const res = await api.patch(`/draws/${drawId}/results`, {
+        matchResults: { [matchId]: isDraw ? "DRAW" : winner!._id },
       });
 
       onUpdate(res.data);

@@ -1,16 +1,30 @@
 import mongoose, { Document, Schema } from "mongoose";
 
+export interface IGrouping {
+  name: string; // "A", "B", "C" ...
+  teams: mongoose.Types.ObjectId[];
+}
+
 export interface IDraw extends Document {
   event: mongoose.Types.ObjectId;
   format: "Group" | "Knockout";
   sport: string;
-  teamSize?: number; // Only for Group format
-  drawnTeams: mongoose.Types.ObjectId[]; // Teams in draw order
-  matchResults?: Record<string, string>; // matchId -> teamId (winner)
+  teamSize?: number;
+  drawnTeams: mongoose.Types.ObjectId[];
+  groupings?: IGrouping[]; // Explicit group assignments (Group Stage only)
+  matchResults?: Record<string, string>; // matchId -> teamId (winner) | "DRAW"
   matchScores?: Record<string, string>; // matchId -> score (e.g. "2 - 1")
   createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
 }
+
+const GroupingSchema = new Schema(
+  {
+    name: { type: String, required: true }, // "A", "B", ...
+    teams: [{ type: Schema.Types.ObjectId, ref: "Team" }],
+  },
+  { _id: false },
+);
 
 const DrawSchema: Schema = new Schema(
   {
@@ -37,6 +51,10 @@ const DrawSchema: Schema = new Schema(
         ref: "Team",
       },
     ],
+    groupings: {
+      type: [GroupingSchema],
+      default: [],
+    },
     matchResults: {
       type: Map,
       of: String,

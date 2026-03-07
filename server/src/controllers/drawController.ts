@@ -7,7 +7,7 @@ import Event from "../models/Event.js";
 // @access  Private (Admin)
 export const createDraw = async (req: Request, res: Response) => {
   try {
-    const { event, format, sport, teamSize, drawnTeams } = req.body;
+    const { event, format, sport, teamSize, drawnTeams, groupings } = req.body;
 
     // Verify event exists
     const eventExists = await Event.findById(event);
@@ -21,10 +21,32 @@ export const createDraw = async (req: Request, res: Response) => {
       sport,
       teamSize,
       drawnTeams,
+      groupings: groupings || [],
       createdBy: req.user?._id,
     });
 
     res.status(201).json(draw);
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+// @desc    Get all draws (globally)
+// @route   GET /api/draws
+// @access  Public
+export const getAllDraws = async (req: Request, res: Response) => {
+  try {
+    const draws = await Draw.find()
+      .populate({ path: "drawnTeams", select: "name sport members teamType" })
+      .populate({
+        path: "groupings.teams",
+        select: "name sport members teamType",
+      })
+      .populate("event", "title slug date")
+      .populate("createdBy", "name email")
+      .sort({ createdAt: -1 });
+
+    res.json(draws);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
   }
@@ -36,8 +58,9 @@ export const createDraw = async (req: Request, res: Response) => {
 export const getDrawsByEvent = async (req: Request, res: Response) => {
   try {
     const draws = await Draw.find({ event: req.params.eventId })
+      .populate({ path: "drawnTeams", select: "name sport members teamType" })
       .populate({
-        path: "drawnTeams",
+        path: "groupings.teams",
         select: "name sport members teamType",
       })
       .populate("createdBy", "name email")
@@ -93,9 +116,13 @@ export const updateDrawResults = async (req: Request, res: Response) => {
     }
     await draw.save();
 
-    // Populate drawnTeams before returning
+    // Populate drawnTeams and groupings.teams before returning
     await draw.populate({
       path: "drawnTeams",
+      select: "name sport members teamType",
+    });
+    await draw.populate({
+      path: "groupings.teams",
       select: "name sport members teamType",
     });
 
@@ -133,9 +160,13 @@ export const updateMatchScore = async (req: Request, res: Response) => {
     }
     await draw.save();
 
-    // Populate drawnTeams before returning
+    // Populate drawnTeams and groupings.teams before returning
     await draw.populate({
       path: "drawnTeams",
+      select: "name sport members teamType",
+    });
+    await draw.populate({
+      path: "groupings.teams",
       select: "name sport members teamType",
     });
 
