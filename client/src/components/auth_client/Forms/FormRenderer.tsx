@@ -1,7 +1,6 @@
 import React from "react";
 import type { Form, FormField } from "../../../types";
 import { useForm, useFieldArray } from "react-hook-form";
-import LoadingSpinner from "../../ui/LoadingSpinner";
 
 interface FormRendererProps {
   form: Form;
@@ -23,10 +22,6 @@ export const FormRenderer: React.FC<FormRendererProps> = ({
 
   const renderField = (field: FormField, index: number, prefix = "") => {
     const fieldName = prefix ? `${prefix}.${field.name}` : field.name;
-
-    if (isLoading) {
-      return <LoadingSpinner />;
-    }
 
     switch (field.type) {
       case "text":
