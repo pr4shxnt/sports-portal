@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import api from "../../../services/api";
+import type { PaginatedUsersResponse } from "../../../services/user.service";
 import { useAppSelector } from "../../../store/hooks";
 import Modal from "../../ui/Modal";
 import LoadingSpinner from "../../ui/LoadingSpinner";
@@ -15,20 +16,69 @@ interface User {
   phone?: string;
 }
 
+interface CategoryState {
+  users: User[];
+  total: number;
+  totalPages: number;
+  loading: boolean;
+}
+
+// Debounce hook — same pattern used in MeetingManagement
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 const PAGINATED_ROLES = ["moderator", "user"];
 const ITEMS_PER_PAGE = 12;
 
+// Defined outside the component so it never changes between renders
+const MEMBER_CATEGORIES = [
+  {
+    label: "Executive",
+    role: "admin",
+    color:
+      "text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 border-red-100 dark:border-red-900/30",
+  },
+  {
+    label: "Staff",
+    role: "superuser",
+    color:
+      "text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400 border-purple-100 dark:border-purple-900/30",
+  },
+  {
+    label: "General member",
+    role: "moderator",
+    color:
+      "text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400 border-blue-100 dark:border-blue-900/30",
+  },
+  {
+    label: "Student",
+    role: "user",
+    color:
+      "text-zinc-600 bg-zinc-50 dark:bg-zinc-800/50 dark:text-zinc-400 border-zinc-100 dark:border-zinc-800",
+  },
+];
+
 const Members = () => {
   const { user: currentUser } = useAppSelector((state) => state.auth);
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [categoryData, setCategoryData] = useState<Record<string, CategoryState>>({});
+  const [globalLoading, setGlobalLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Search & pagination state per category role
-  const [searchQueries, setSearchQueries] = useState<Record<string, string>>(
-    {},
-  );
+  const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
+  const debouncedSearchQueries = useDebounce(searchQueries, 300);
   const [currentPages, setCurrentPages] = useState<Record<string, number>>({});
+
+  // Refs to manage effect sequencing
+  const initialLoadDone = useRef(false);
+  // Prevents the page-change effect from double-fetching after the search effect resets pages
+  const searchChangedPageRef = useRef(false);
 
   // Add Member Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -43,22 +93,94 @@ const Members = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const fetchUsers = async () => {
+  const fetchCategoryData = async (role: string, q: string, page: number) => {
+    setCategoryData((prev) => ({
+      ...prev,
+      [role]: {
+        ...(prev[role] ?? { users: [], total: 0, totalPages: 0 }),
+        loading: true,
+      },
+    }));
     try {
-      setLoading(true);
-      const { data } = await api.get("/users");
-      setUsers(data);
-    } catch (err: any) {
-      console.error("Error fetching users:", err);
-      setError("Failed to load members");
-    } finally {
-      setLoading(false);
+      const params = new URLSearchParams({
+        role,
+        page: String(page),
+        limit: String(PAGINATED_ROLES.includes(role) ? ITEMS_PER_PAGE : 100),
+      });
+      if (q.trim().length >= 2) params.set("q", q.trim());
+      const { data } = await api.get<PaginatedUsersResponse>(
+        `/users?${params}`,
+      );
+      setCategoryData((prev) => ({
+        ...prev,
+        [role]: {
+          users: data.users,
+          total: data.total,
+          totalPages: data.totalPages,
+          loading: false,
+        },
+      }));
+    } catch {
+      setCategoryData((prev) => ({
+        ...prev,
+        [role]: {
+          ...(prev[role] ?? { users: [], total: 0, totalPages: 0 }),
+          loading: false,
+        },
+      }));
     }
   };
 
+  // Initial load: fetch all categories
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    const init = async () => {
+      setGlobalLoading(true);
+      try {
+        await Promise.all(
+          MEMBER_CATEGORIES.map((cat) => fetchCategoryData(cat.role, "", 1)),
+        );
+      } catch {
+        setError("Failed to load members");
+      } finally {
+        initialLoadDone.current = true;
+        setGlobalLoading(false);
+      }
+    };
+    init();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced search effect: fires when the user stops typing (after 300 ms)
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    // Mark that the coming page-reset is caused by a search change so the page
+    // effect skips its own fetch (avoiding a duplicate request).
+    searchChangedPageRef.current = true;
+    setCurrentPages((prev) => ({
+      ...prev,
+      ...Object.fromEntries(PAGINATED_ROLES.map((r) => [r, 1])),
+    }));
+    PAGINATED_ROLES.forEach((role) => {
+      fetchCategoryData(role, debouncedSearchQueries[role] ?? "", 1);
+    });
+  }, [debouncedSearchQueries]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Page navigation effect: fires when the user clicks a page button
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    // Skip if this page change was programmatically triggered by the search effect
+    if (searchChangedPageRef.current) {
+      searchChangedPageRef.current = false;
+      return;
+    }
+    PAGINATED_ROLES.forEach((role) => {
+      fetchCategoryData(
+        role,
+        debouncedSearchQueries[role] ?? "",
+        currentPages[role] ?? 1,
+      );
+    });
+  }, [currentPages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleBan = async (user: User) => {
     if (
@@ -69,7 +191,12 @@ const Members = () => {
       return;
     try {
       await api.put(`/users/${user._id}`, { isBanned: !user.isBanned });
-      fetchUsers();
+      // Refresh only the affected category
+      fetchCategoryData(
+        user.role,
+        debouncedSearchQueries[user.role] ?? "",
+        currentPages[user.role] ?? 1,
+      );
     } catch (err: any) {
       alert(err.response?.data?.message || "Failed to update ban status");
     }
@@ -81,6 +208,7 @@ const Members = () => {
     setFormError(null);
     try {
       await api.post("/users", newMember);
+      const addedRole = newMember.role;
       setIsAddModalOpen(false);
       setNewMember({
         name: "",
@@ -90,7 +218,10 @@ const Members = () => {
         studentId: "",
         phone: "",
       });
-      fetchUsers();
+      // Reset search & page for the new member's category, then refresh it
+      setSearchQueries((prev) => ({ ...prev, [addedRole]: "" }));
+      setCurrentPages((prev) => ({ ...prev, [addedRole]: 1 }));
+      fetchCategoryData(addedRole, "", 1);
     } catch (err: any) {
       setFormError(err.response?.data?.message || "Failed to create member");
     } finally {
@@ -98,44 +229,16 @@ const Members = () => {
     }
   };
 
-  const handleSearch = (role: string, query: string) => {
+  const updateSearchQuery = (role: string, query: string) => {
     setSearchQueries((prev) => ({ ...prev, [role]: query }));
-    setCurrentPages((prev) => ({ ...prev, [role]: 1 }));
+    // Page reset is handled by the debounced search effect to avoid stale fetches
   };
 
   const handlePageChange = (role: string, page: number) => {
     setCurrentPages((prev) => ({ ...prev, [role]: page }));
   };
 
-  // Categorization logic based on user request
-  const categories = [
-    {
-      label: "Executive",
-      role: "admin",
-      color:
-        "text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 border-red-100 dark:border-red-900/30",
-    },
-    {
-      label: "Staff",
-      role: "superuser",
-      color:
-        "text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400 border-purple-100 dark:border-purple-900/30",
-    },
-    {
-      label: "General member",
-      role: "moderator",
-      color:
-        "text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400 border-blue-100 dark:border-blue-900/30",
-    },
-    {
-      label: "Student",
-      role: "user",
-      color:
-        "text-zinc-600 bg-zinc-50 dark:bg-zinc-800/50 dark:text-zinc-400 border-zinc-100 dark:border-zinc-800",
-    },
-  ];
-
-  if (loading) {
+  if (globalLoading) {
     return <LoadingSpinner />;
   }
 
@@ -144,6 +247,12 @@ const Members = () => {
       <div className="p-10 text-center text-red-500 font-medium">{error}</div>
     );
   }
+
+  // Grand total: sum of all category totals (reflects filters when search is active)
+  const totalCount = Object.values(categoryData).reduce(
+    (sum, cat) => sum + cat.total,
+    0,
+  );
 
   return (
     <div className="p-6 space-y-10 max-w-7xl mx-auto">
@@ -180,7 +289,7 @@ const Members = () => {
           )}
           <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
             <span className="text-sm font-bold text-[#DD1D25]">
-              {users.length}
+              {totalCount}
             </span>
             <span className="text-sm text-zinc-500 font-medium tracking-wide uppercase">
               Total
@@ -190,32 +299,22 @@ const Members = () => {
       </div>
 
       <div className="space-y-12">
-        {categories.map((cat) => {
-          const catUsers = users.filter((u) => u.role === cat.role);
-          if (catUsers.length === 0) return null;
-
+        {MEMBER_CATEGORIES.map((cat) => {
+          const catData = categoryData[cat.role];
           const isPaginated = PAGINATED_ROLES.includes(cat.role);
           const searchQuery = searchQueries[cat.role] ?? "";
           const currentPage = currentPages[cat.role] ?? 1;
-          const lowerQuery = searchQuery.toLowerCase();
+          const hasActiveSearch = searchQuery.trim().length > 0;
 
-          const filteredUsers = isPaginated
-            ? catUsers.filter(
-                (u) =>
-                  u.name.toLowerCase().includes(lowerQuery) ||
-                  u.email.toLowerCase().includes(lowerQuery),
-              )
-            : catUsers;
+          // Hide categories that have no members (unless a search is active or data is loading)
+          if (
+            !catData ||
+            (catData.total === 0 && !hasActiveSearch && !catData.loading)
+          )
+            return null;
 
-          const totalPages = isPaginated
-            ? Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)
-            : 1;
-          const pagedUsers = isPaginated
-            ? filteredUsers.slice(
-                (currentPage - 1) * ITEMS_PER_PAGE,
-                currentPage * ITEMS_PER_PAGE,
-              )
-            : filteredUsers;
+          const displayUsers = catData.users; // already filtered + paginated by server
+          const totalPages = catData.totalPages;
 
           return (
             <div key={cat.label} className="space-y-6">
@@ -227,8 +326,8 @@ const Members = () => {
                 </h2>
                 <div className="h-px flex-1 bg-linear-to-r from-zinc-200 to-transparent dark:from-zinc-800" />
                 <span className="text-xs font-semibold text-zinc-400">
-                  {catUsers.length}{" "}
-                  {catUsers.length === 1 ? "Individual" : "Individuals"}
+                  {catData.total}{" "}
+                  {catData.total === 1 ? "Individual" : "Individuals"}
                 </span>
               </div>
 
@@ -251,20 +350,30 @@ const Members = () => {
                     type="text"
                     placeholder={`Search ${cat.label}s by name or email…`}
                     value={searchQuery}
-                    onChange={(e) => handleSearch(cat.role, e.target.value)}
+                    onChange={(e) => updateSearchQuery(cat.role, e.target.value)}
                     className="w-full pl-9 pr-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:ring-2 focus:ring-[#DD1D25] focus:border-transparent outline-none transition-all shadow-sm"
                   />
                 </div>
               )}
 
-              {isPaginated && filteredUsers.length === 0 ? (
+              {isPaginated && catData.loading ? (
+                <div className="py-8 text-center text-zinc-400 text-sm font-medium">
+                  Loading…
+                </div>
+              ) : isPaginated && displayUsers.length === 0 ? (
                 <div className="py-10 text-center text-zinc-400 text-sm font-medium">
-                  No {cat.label.toLowerCase()}s found matching &ldquo;
-                  {searchQuery}&rdquo;.
+                  No {cat.label.toLowerCase()}s found
+                  {hasActiveSearch && (
+                    <>
+                      {" "}
+                      matching &ldquo;{searchQuery}&rdquo;
+                    </>
+                  )}
+                  .
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {pagedUsers.map((user) => (
+                  {displayUsers.map((user) => (
                     <div
                       key={user._id}
                       className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 transition-all group"
