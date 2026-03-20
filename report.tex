@@ -1,0 +1,270 @@
+\documentclass[12pt,a4paper]{article}
+
+%-----------------------------------------
+% PACKAGES
+%-----------------------------------------
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{newtxtext,newtxmath} % Times-style font
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{caption}
+
+%-----------------------------------------
+% SPACING (Academic Style)
+%-----------------------------------------
+\setstretch{1.25}
+\setlength{\parindent}{15pt}
+\setlength{\parskip}{8pt}
+
+%-----------------------------------------
+% SECTION STYLE
+%-----------------------------------------
+\titleformat{\section}
+{\large\bfseries}
+{\thesection}{1em}{}
+
+\titleformat{\subsection}
+{\normalsize\bfseries}
+{\thesubsection}{1em}{}
+
+%-----------------------------------------
+% HEADER / FOOTER
+%-----------------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\fancyhead[L]{Sports Portal 1.0 -- Technical Whitepaper}
+\fancyhead[R]{Sunway College Kathmandu}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue
+}
+
+%-----------------------------------------
+% CODE LISTINGS
+%-----------------------------------------
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\lstset{
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    tabsize=2
+}
+
+\begin{document}
+
+%-----------------------------------------
+% COVER PAGE
+%-----------------------------------------
+\begin{titlepage}
+    \centering
+    
+    \includegraphics[width=0.7\textwidth]{sunway_logo.png} \\
+    \vfill
+    
+    {\Large \textbf{Sunway Students Representative Council}} \\[0.3cm]
+    {\large Sunway College Kathmandu} \\[2cm]
+    
+    {\Huge \textbf{SPORTS PORTAL 1.0}} \\[0.6cm]
+    
+    {\large \textbf{A Comprehensive Technical Blueprint for Institutional Sports Management}} \\[0.3cm]
+    {\normalsize Centralized Software for High-Efficiency Operations} \\[2cm]
+    
+    {\large Maintained by} \\[0.3cm]
+    {\Large \textbf{Sports Club -- SSRC}} \\[2cm]
+        \vfill
+
+    \rule{0.7\textwidth}{1pt} \\[0.6cm]
+    
+    {\large \textbf{Official Architectural Analysis \& Deployment Roadmap}} \\[0.3cm]
+    {\normalsize Enterprise-grade Security with Institutional Integrity} \\[0.6cm]
+    
+    \rule{0.7\textwidth}{1pt}
+    \newpage
+    
+    \begin{flushleft}
+    \textbf{Project type:} Advanced Full-Stack Website Development \\
+    \textbf{Project Duration:} Phase 1 Execution (2025-2026) \\
+    \textbf{Beneficiary Focus:} Sunway College Kathmandu Students and SSRC Administration.
+    
+    \textbf{Key System Pillars:}
+    \begin{itemize}
+        \item \textbf{Closed Security Ecosystem}: Exclusive `@sunway.edu.np` domain restriction to maintain academic sanctity and data privacy.
+        \item \textbf{Hybrid Authentication}: Leveraging Google OAuth 2.0 for primary identity and custom OTP cycles for sensitive operations.
+        \item \textbf{Automated Team Engine}: Procedural generation of sports teams directly from validated registration data.
+        \item \textbf{Infrastructure as Code}: Predictable deployment using Docker and automated process management.
+        \item \textbf{Resource Chain of Custody}: Transparent equipment tracking to eliminate asset shrinkage.
+    \end{itemize}
+     \textbf{Core Technology Stack:} 
+    \begin{itemize}
+        \item \textbf{Frontend}: React 19 (TypeScript), Redux Toolkit, Tailwind CSS, Vite.
+        \item \textbf{Backend}: Node.js (Express), Node-Mailer, ICS.
+        \item \textbf{Persistence}: MongoDB (Local) with optimized Mongoose indexing.
+        \item \textbf{DevOps}: Docker, Nginx Reverse Proxy, PM2 Process Manager, SSL (Certbot).
+    \end{itemize}
+    
+    \end{flushleft}
+    
+    \vfill
+    {\normalsize Developed by: Prashant Adhikari} \\
+    {\normalsize Prepared for: Sunway Students Representative Council} \\
+    {\normalsize Sunway College Kathmandu} \\
+    {\normalsize \today}
+    
+\end{titlepage}
+\newpage
+
+\tableofcontents
+\newpage
+
+\section{Executive Summary}
+
+Sports Portal 1.0 is mission-critical infrastructure developed for the SSRC Sports Club at Sunway College Kathmandu. In an era where sports data and event management have become increasingly complex, manual spreadsheets and third-party generic forms no longer suffice. This platform provides a tailored, high-security, and automated ecosystem specifically designed to handle the unique workflows of an educational institution's sports department.
+
+By centralizing user data, automating tournament draws, and enforcing equipment accountability, the Sports Portal 1.0 ensures that college resources are utilized efficiently while providing a professional, technology-driven experience for the student body.
+
+\section{Introduction and Institutional Motivation}
+
+\subsection{Background}
+Sunway College Kathmandu fosters a vibrant sports culture. However, as the number of events (Inter-college tournaments, intramural matches, E-sports festivals) grows, the administrative burden on the SSRC Sports Club increases exponentially. 
+
+\subsection{The Need for Decentralized Automation}
+The primary motivation for this portal is to move away from "Paper and Spreadsheet" management. The current challenges include:
+\begin{itemize}
+    \item \textbf{Data Leakage}: Storing student data on external, non-institutional servers.
+    \item \textbf{Opaque Scheduling}: Manual match draws that can lead to perceived bias.
+    \item \textbf{Communication Latency}: Manually emailing 100+ participants for every update or meeting.
+    \item \textbf{Asset Inventory Decay}: The lack of a digital hand-off record for sports equipment.
+\end{itemize}
+
+\section{Security Architecture: The Closed Ecosystem}
+
+\subsection{Domain-Locked Access (@sunway.edu.np)}
+One of the core security philosophies of the Sports Portal 1.0 is the "Closed Ecosystem." The system is strictly restricted to users with a valid \texttt{@sunway.edu.np} email address.
+\begin{enumerate}
+    \item \textbf{Identity Verification}: By locking the domain, we ensure that only current students and staff can access the portal.
+    \item \textbf{Zero Unauthorized External Entry}: Even if an external user discovers the login page, the backend validation rejects any non-institutional domain.
+\end{enumerate}
+
+\subsection{Integration of Google OAuth 2.0}
+To provide enterprise-grade security, the portal integrates \textbf{Google OAuth 2.0}.
+\begin{itemize}
+    \item \textbf{Reduced Attack Surface}: We do not store plain-text or even hashed versions of primary passwords; authentication is handled by Google's secure identity servers.
+    \item \textbf{MFA Support}: Users benefit from Google's Multi-Factor Authentication (MFA) layer natively.
+    \item \textbf{Seamless UX}: One-click login for students already signed into their college Workspace.
+\end{itemize}
+
+\subsection{Membership Approval and Credential Lifecycle}
+A specialized workflow exists for "Official Membership":
+\begin{enumerate}
+    \item \textbf{Submission}: A student applies for Sports Club membership via a portal-generated form.
+    \item \textbf{Review}: Admin reviews the submission in the dashboard.
+    \item \textbf{Approval Logic}: Upon approval, the system generates a set of portal-specific credentials.
+    \item \textbf{Secure Delivery}: These credentials, along with a custom onboarding guide, are automatically emailed to the student.
+\end{enumerate}
+
+\section{System Architecture and Implementation}
+
+\subsection{The MERN Stack Choice}
+The stack choice was driven by the need for a non-blocking, event-driven architecture that can handle sudden spikes in traffic during tournament registration.
+\begin{itemize}
+    \item \textbf{Node.js/Express}: Manages the event loop efficiently for I/O operations (like sending 100+ emails simultaneously).
+    \item \textbf{React 19}: The newest iteration of React provides optimized rendering for the complex dashboard tables and real-time score updates.
+\end{itemize}
+
+\subsection{Advanced Module Analysis}
+
+\subsubsection{Team Generator \& Transform Logic}
+The system features a procedural engine that takes "Raw Submissions" and converts them into "Validated Teams."
+\begin{itemize}
+    \item \textbf{Auto-Mapping}: Submissions approved for an event are grouped by the system based on the sport's requirements (e.g., 11 players for Football, 5 for Basketball).
+    \item \textbf{Draw Intelligence}: The match scheduler uses a randomization seed to pair teams, ensuring absolute fairness.
+\end{itemize}
+
+\subsubsection{Meeting \& Calendar Integration}
+The Meeting module uses the \texttt{ics} library to bridge the gap between web-portals and personal devices.
+\begin{itemize}
+    \item \textbf{Email Automation}: Sends invitation templates with "Join meeting" buttons.
+    \item \textbf{iCal generation}: Attaching an \texttt{invite.ics} file allows participants to sync the meeting directly to their Google Calendar or Outlook in one click.
+\end{itemize}
+
+\section{Infrastructure and DevOps Strategy}
+
+To deliver the Sports Portal 1.0 as a reliable institutional service, we have designed a robust deployment pipeline.
+
+\subsection{Containerization with Docker}
+We utilize \textbf{Docker} and \textbf{Docker Compose} to ensure that the development environment matches the production VPS exactly.
+\begin{itemize}
+    \item \textbf{Client Image}: Optimized Nginx container serving the React build.
+    \item \textbf{Server Image}: Node.js Alpine image for a micro-footprint backend.
+    \item \textbf{Parity}: Eliminates the "It works on my machine" problem by bundling dependencies.
+\end{itemize}
+
+\subsection{VPS and Networking (Subdomain Management)}
+The software is designed to run on a single high-performance VPS.
+\begin{enumerate}
+    \item \textbf{DNS Strategy}: We recommend registering a subdomain like \texttt{sports.sunway.edu.np}.
+    \item \textbf{Nginx Reverse Proxy}: Acts as the gateway, routing traffic from Port 80/443 to the internal Docker containers.
+    \item \textbf{SSL termination}: Using Certbot/Let's Encrypt to ensure all student data is encrypted in transit.
+\end{enumerate}
+
+\subsection{Data Management and Caching}
+A local database strategy was chosen for maximum speed and control.
+\begin{itemize}
+    \item \textbf{Local MongoDB}: Running on the VPS for ultra-low latency.
+    \item \textbf{Database Indexing}: High-use fields (email, eventId) are indexed to ensure sub-100ms response times even as data grows.
+    \item \textbf{In-Memory Caching}: (Planned) Implementation of caching for public event lists to reduce database hits during high-traffic registration periods.
+\end{itemize}
+
+\section{Target Hardware Specifications (Single VPS)}
+
+For the initial scale (500-1000 active users), the following specifications are required to maintain a seamless experience:
+\begin{table}[h!]
+\centering
+\caption{Required VPS Specifications}
+\begin{tabular}{llp{8cm}}
+\toprule
+\textbf{Resource} & \textbf{Minimum} & \textbf{Rational} \\
+\midrule
+CPU & 2 vCPU & Handles Node.js cluster mode and Nginx worker processes simultaneously. \\
+RAM & 4GB DDR4 & Provides enough overhead for the MongoDB buffer pool and React build processes. \\
+Storage & 40GB NVMe & Critical for fast database write/read operations during concurrent registrations. \\
+Network & 1Gbps Port & Ensures no bottleneck during peak tournament traffic or asset uploads. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Deployment Roadmap (How we will do it)}
+
+The transition to production follows a 4-step deployment cycle:
+\begin{enumerate}
+    \item \textbf{Environment Provisioning}: Setting up the Linux environment, Docker, and Nginx on the VPS.
+    \item \textbf{DNS Propagation}: Mapping the IP to the \texttt{sports.sunway.edu.np} subdomain.
+    \item \textbf{Deployment}: Using \texttt{docker-compose up -d} to spin up the services.
+    \item \textbf{Security Hardening}: Implementing firewall rules (UFW) to only allow 80, 443, and SSH ports.
+\end{enumerate}
+
+\section{Conclusion and Impact Analysis}
+
+The Sports Portal 1.0 represents a new era of administrative efficiency for Sunway College Kathmandu. By leveraging modern technologies like React, Node.js, and Docker, the SSRC Sports Club can now manage events with algorithmic precision and institutional-grade security. 
+
+The move to a closed ecosystem with Google OAuth ensures that student data remains within the college's digital perimeter, while automation features like the Meeting Suite and Team Engine liberate club executives to focus on what matters most: the spirit of sport and student competition.
+
+\end{document}

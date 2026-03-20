@@ -2,6 +2,7 @@ import express from "express";
 import {
   createDraw,
   getDrawsByEvent,
+  getAllDraws,
   deleteDraw,
   updateDrawResults,
   updateMatchScore,
@@ -12,6 +13,7 @@ import { UserRole } from "../models/User.js";
 const router = express.Router();
 
 router.post("/", protect, authorize(UserRole.ADMIN), createDraw);
+router.get("/", getAllDraws);
 router.get("/event/:eventId", getDrawsByEvent);
 router.delete("/:id", protect, authorize(UserRole.ADMIN), deleteDraw);
 router.patch(

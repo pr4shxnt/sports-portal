@@ -9,6 +9,7 @@ import {
 } from "../../../store/slices/formSlice";
 import img from "../../../assets/logo_main.png";
 import Cropper from "react-easy-crop";
+import LoadingSpinner from "../../ui/LoadingSpinner";
 
 interface FormData {
   [key: string]: any;
@@ -599,6 +600,10 @@ const DynamicForm = () => {
       setSubmitting(false);
     }
   };
+
+  if (loading) {
+    return <LoadingSpinner fullScreen />;
+  }
 
   if (!formSchema || !formSchema.isActive) {
     return (
