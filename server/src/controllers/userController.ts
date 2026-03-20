@@ -3,25 +3,45 @@ import User, { UserRole } from "../models/User.js";
 import bcrypt from "bcryptjs";
 import { sendUserCredentialsEmail } from "../utils/emailHelper.js";
 
-// @desc    Get all users (with optional role filter)
-// @route   GET /api/users
+// @desc    Get users with optional role filter, search, and pagination
+// @route   GET /api/users?role=&q=&page=&limit=
 // @access  Private/Admin/Staff/Moderator
 export const getUsers = async (req: Request, res: Response) => {
   try {
-    const { role } = req.query;
-    const filter = role ? { role } : {};
+    const { role, q, page = "1", limit = "12" } = req.query;
+    const filter: Record<string, unknown> = role ? { role } : {};
 
     // Moderators can only view members (users)
     if (req.user?.role === UserRole.MODERATOR) {
-      // Force filter to 'user' role only or restrict access?
-      // Description says "View members", likely means 'user' role.
-      // Let's restricting query to role='user' if moderator
-      // Or if no specific filter, return only 'user' users.
       Object.assign(filter, { role: UserRole.USER });
     }
 
-    const users = await User.find(filter).select("-password");
-    res.json(users);
+    // Search by name or email (minimum 2 chars)
+    if (q && typeof q === "string" && q.trim().length >= 2) {
+      const regex = new RegExp(q.trim(), "i");
+      filter.$or = [{ name: regex }, { email: regex }];
+    }
+
+    const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 12));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [users, total] = await Promise.all([
+      User.find(filter)
+        .select("-password")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum),
+      User.countDocuments(filter),
+    ]);
+
+    res.json({
+      users,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+      limit: limitNum,
+    });
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
   }
