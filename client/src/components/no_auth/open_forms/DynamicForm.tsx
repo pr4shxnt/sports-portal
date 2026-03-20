@@ -646,7 +646,10 @@ const DynamicForm = () => {
             <h1 className="text-3xl font-bold tracking-tight text-white text-center">
               {formSchema.formTitle}
             </h1>
-            <p className="text-sm text-neutral-400 text-center leading-relaxed max-w-2xl mx-auto">
+            <p
+              className="text-sm text-neutral-400 text-center leading-relaxed max-w-2xl mx-auto"
+              style={{ whiteSpace: "pre-line" }}
+            >
               {formSchema.formDescription}
             </p>
 
