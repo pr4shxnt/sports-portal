@@ -2,11 +2,28 @@ import api from "./api";
 import type { User } from "../types";
 import { UserRole } from "../types";
 
+export interface PaginatedUsersResponse {
+  users: User[];
+  total: number;
+  page: number;
+  totalPages: number;
+  limit: number;
+}
+
 export const userService = {
-  // Get all users (Admin/Superuser/Moderator)
-  getAll: async (role?: UserRole): Promise<User[]> => {
-    const params = role ? { role } : {};
-    const response = await api.get<User[]>("/users", { params });
+  // Get paginated users (Admin/Superuser/Moderator)
+  getAll: async (
+    role?: UserRole,
+    page = 1,
+    limit = 12,
+    q?: string,
+  ): Promise<PaginatedUsersResponse> => {
+    const params: Record<string, string | number> = { page, limit };
+    if (role) params.role = role;
+    if (q && q.trim().length >= 2) params.q = q.trim();
+    const response = await api.get<PaginatedUsersResponse>("/users", {
+      params,
+    });
     return response.data;
   },
 
