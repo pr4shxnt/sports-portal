@@ -843,6 +843,22 @@ const DynamicForm = () => {
                           </div>
                         )}
                       </div>
+                    ) : field.type === "textarea" ? (
+                      <>
+                        <textarea
+                          name={field.name}
+                          value={formData[field.name] || ""}
+                          placeholder={field.placeholder}
+                          required={field.required}
+                          onChange={(e: any) => handleChange(e)}
+                          rows={5}
+                          className={`w-full rounded-md border ${
+                            errors[field.name]
+                              ? "border-red-500"
+                              : "border-neutral-800"
+                          } bg-neutral-950 px-4 py-3 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-[#B61C23] focus:ring-1 focus:ring-[#B61C23] transition-all resize-y min-h-[120px]`}
+                        />
+                      </>
                     ) : (
                       <>
                         <input
