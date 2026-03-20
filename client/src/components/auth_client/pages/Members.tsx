@@ -15,11 +15,20 @@ interface User {
   phone?: string;
 }
 
+const PAGINATED_ROLES = ["moderator", "user"];
+const ITEMS_PER_PAGE = 12;
+
 const Members = () => {
   const { user: currentUser } = useAppSelector((state) => state.auth);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Search & pagination state per category role
+  const [searchQueries, setSearchQueries] = useState<Record<string, string>>(
+    {},
+  );
+  const [currentPages, setCurrentPages] = useState<Record<string, number>>({});
 
   // Add Member Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -87,6 +96,15 @@ const Members = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSearch = (role: string, query: string) => {
+    setSearchQueries((prev) => ({ ...prev, [role]: query }));
+    setCurrentPages((prev) => ({ ...prev, [role]: 1 }));
+  };
+
+  const handlePageChange = (role: string, page: number) => {
+    setCurrentPages((prev) => ({ ...prev, [role]: page }));
   };
 
   // Categorization logic based on user request
@@ -176,6 +194,29 @@ const Members = () => {
           const catUsers = users.filter((u) => u.role === cat.role);
           if (catUsers.length === 0) return null;
 
+          const isPaginated = PAGINATED_ROLES.includes(cat.role);
+          const searchQuery = searchQueries[cat.role] ?? "";
+          const currentPage = currentPages[cat.role] ?? 1;
+          const lowerQuery = searchQuery.toLowerCase();
+
+          const filteredUsers = isPaginated
+            ? catUsers.filter(
+                (u) =>
+                  u.name.toLowerCase().includes(lowerQuery) ||
+                  u.email.toLowerCase().includes(lowerQuery),
+              )
+            : catUsers;
+
+          const totalPages = isPaginated
+            ? Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)
+            : 1;
+          const pagedUsers = isPaginated
+            ? filteredUsers.slice(
+                (currentPage - 1) * ITEMS_PER_PAGE,
+                currentPage * ITEMS_PER_PAGE,
+              )
+            : filteredUsers;
+
           return (
             <div key={cat.label} className="space-y-6">
               <div className="flex items-center gap-4">
@@ -191,66 +232,156 @@ const Members = () => {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {catUsers.map((user) => (
-                  <div
-                    key={user._id}
-                    className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 transition-all group"
+              {isPaginated && (
+                <div className="relative">
+                  <svg
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center text-lg font-bold text-zinc-400 group-hover:bg-[#DD1D25]/10 group-hover:text-[#DD1D25] transition-colors border border-zinc-200 dark:border-zinc-800">
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-zinc-900 dark:text-zinc-50 truncate leading-tight">
-                            {user.name}
-                          </h3>
-                          {user.isBanned && (
-                            <span className="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-red-200 dark:border-red-900/50">
-                              Banned
-                            </span>
-                          )}
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
+                    />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder={`Search ${cat.label}s by name or email…`}
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(cat.role, e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:ring-2 focus:ring-[#DD1D25] focus:border-transparent outline-none transition-all shadow-sm"
+                  />
+                </div>
+              )}
+
+              {isPaginated && filteredUsers.length === 0 ? (
+                <div className="py-10 text-center text-zinc-400 text-sm font-medium">
+                  No {cat.label.toLowerCase()}s found matching &ldquo;
+                  {searchQuery}&rdquo;.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {pagedUsers.map((user) => (
+                    <div
+                      key={user._id}
+                      className="p-4 bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 transition-all group"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center text-lg font-bold text-zinc-400 group-hover:bg-[#DD1D25]/10 group-hover:text-[#DD1D25] transition-colors border border-zinc-200 dark:border-zinc-800">
+                          {user.name.charAt(0).toUpperCase()}
                         </div>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
-                          {user.email}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-zinc-900 dark:text-zinc-50 truncate leading-tight">
+                              {user.name}
+                            </h3>
+                            {user.isBanned && (
+                              <span className="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-red-200 dark:border-red-900/50">
+                                Banned
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-zinc-50 dark:border-zinc-900/50 flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-tight">
+                            Joined
+                          </span>
+                          <span className="text-[11px] text-zinc-600 dark:text-zinc-400 font-bold">
+                            {new Date(user.createdAt).toLocaleDateString(
+                              undefined,
+                              { month: "short", year: "numeric" },
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {currentUser?.role === "admin" &&
+                            user.role !== "admin" &&
+                            user.role !== "superuser" && (
+                              <button
+                                onClick={() => handleToggleBan(user)}
+                                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors ${user.isBanned ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700" : "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40"}`}
+                              >
+                                {user.isBanned ? "Unban" : "Ban"}
+                              </button>
+                            )}
+                          <a
+                            href={`mailto:${user.email}`}
+                            className="text-[10px] font-bold text-[#DD1D25] uppercase tracking-wider hover:underline"
+                          >
+                            Message
+                          </a>
+                        </div>
                       </div>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-zinc-50 dark:border-zinc-900/50 flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-tight">
-                          Joined
-                        </span>
-                        <span className="text-[11px] text-zinc-600 dark:text-zinc-400 font-bold">
-                          {new Date(user.createdAt).toLocaleDateString(
-                            undefined,
-                            { month: "short", year: "numeric" },
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {currentUser?.role === "admin" &&
-                          user.role !== "admin" &&
-                          user.role !== "superuser" && (
-                            <button
-                              onClick={() => handleToggleBan(user)}
-                              className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors ${user.isBanned ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700" : "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40"}`}
-                            >
-                              {user.isBanned ? "Unban" : "Ban"}
-                            </button>
-                          )}
-                        <a
-                          href={`mailto:${user.email}`}
-                          className="text-[10px] font-bold text-[#DD1D25] uppercase tracking-wider hover:underline"
+                  ))}
+                </div>
+              )}
+
+              {isPaginated && totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-2">
+                  <button
+                    onClick={() => handlePageChange(cat.role, currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 text-xs font-bold rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ← Prev
+                  </button>
+                  {(() => {
+                    const pages: (number | "…")[] = [];
+                    if (totalPages <= 7) {
+                      for (let i = 1; i <= totalPages; i++) pages.push(i);
+                    } else {
+                      pages.push(1);
+                      if (currentPage > 3) pages.push("…");
+                      for (
+                        let i = Math.max(2, currentPage - 1);
+                        i <= Math.min(totalPages - 1, currentPage + 1);
+                        i++
+                      )
+                        pages.push(i);
+                      if (currentPage < totalPages - 2) pages.push("…");
+                      pages.push(totalPages);
+                    }
+                    return pages.map((page, idx) =>
+                      page === "…" ? (
+                        <span
+                          key={`ellipsis-${idx}`}
+                          className="px-2 text-xs text-zinc-400 select-none"
                         >
-                          Message
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={page}
+                          onClick={() => handlePageChange(cat.role, page)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
+                            page === currentPage
+                              ? "bg-[#DD1D25] text-white border-[#DD1D25] shadow-sm"
+                              : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ),
+                    );
+                  })()}
+                  <button
+                    onClick={() => handlePageChange(cat.role, currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 text-xs font-bold rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
