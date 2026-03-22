@@ -234,7 +234,7 @@ const DynamicForm = () => {
           } else if (name === "email") {
             player1.email = value;
             shouldUpdate = true;
-          } else if (name === "number") {
+          } else if (name === "number" || name === "phone") {
             player1.phone = value;
             shouldUpdate = true;
           }
