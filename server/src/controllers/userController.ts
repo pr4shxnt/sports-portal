@@ -23,7 +23,10 @@ export const getUsers = async (req: Request, res: Response) => {
     }
 
     const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 12));
+    const limitNum = Math.min(
+      100,
+      Math.max(1, parseInt(limit as string, 10) || 12),
+    );
     const skip = (pageNum - 1) * limitNum;
 
     const [users, total] = await Promise.all([
@@ -151,7 +154,8 @@ export const updateUser = async (req: Request, res: Response) => {
       // We will allow Moderators to update 'user' role users.
       if (
         req.user?.role === UserRole.MODERATOR &&
-        user.role !== UserRole.USER
+        user.role !== UserRole.USER &&
+        req.user?._id.toString() !== user._id.toString()
       ) {
         return res
           .status(403)

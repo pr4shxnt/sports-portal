@@ -31,8 +31,8 @@ router.post("/", authorize(UserRole.ADMIN), createUser);
 // Get specific user: Admin, Superuser
 router.get("/:id", authorize(UserRole.ADMIN, UserRole.SUPERUSER), getUserById);
 
-// Update user: Admin, Moderator (limited)
-router.put("/:id", authorize(UserRole.ADMIN, UserRole.MODERATOR), updateUser);
+// Update user: self (any authenticated) or Admin/Moderator/Superuser (any user)
+router.put("/:id", authorize(UserRole.ADMIN, UserRole.MODERATOR, UserRole.SUPERUSER, UserRole.USER), updateUser);
 
 // Delete user: Admin only
 router.delete("/:id", authorize(UserRole.ADMIN), deleteUser);

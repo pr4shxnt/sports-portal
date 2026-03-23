@@ -46,6 +46,7 @@ interface Announcement {
 const Announcements = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [react, setReact] = useState<Boolean>(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -58,8 +59,22 @@ const Announcements = () => {
     index: number;
     text: string;
   } | null>(null);
+  const [activePickerId, setActivePickerId] = useState<string | null>(null);
 
   const { user } = useAppSelector((state) => state.auth);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        activePickerId &&
+        !(event.target as Element).closest(".group\\/picker")
+      ) {
+        setActivePickerId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [activePickerId]);
 
   const canCreate = user?.role === "admin" || user?.role === "superuser";
 
@@ -136,6 +151,8 @@ const Announcements = () => {
       setAnnouncements((prev) =>
         prev.map((ann) => (ann._id === id ? res.data : ann)),
       );
+      // Close picker on mobile after choosing
+      if (activePickerId === id) setActivePickerId(null);
     } catch (error) {
       console.error("Error toggling reaction:", error);
     }
@@ -319,6 +336,13 @@ const Announcements = () => {
                       );
                       return (
                         <button
+                          onClick={() => {
+                            if (window.innerWidth < 768) {
+                              setActivePickerId(
+                                activePickerId === ann._id ? null : ann._id,
+                              );
+                            }
+                          }}
                           className={`flex items-center gap-2 transition-colors ${
                             activeReaction
                               ? "text-[#DD1D25] font-bold"
@@ -352,7 +376,13 @@ const Announcements = () => {
                         </button>
                       );
                     })()}
-                    <div className="absolute bottom-3 left-0 mb-2 p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full shadow-xl opacity-0 scale-90 pointer-events-none group-hover/picker:opacity-100 group-hover/picker:scale-100 group-hover/picker:pointer-events-auto transition-all flex gap-1 z-30">
+                    <div
+                      className={`absolute bottom-3 left-0 mb-2 p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full shadow-xl transition-all flex gap-1 z-30 ${
+                        activePickerId === ann._id
+                          ? "opacity-100 scale-100 pointer-events-auto"
+                          : "opacity-0 scale-90 pointer-events-none md:group-hover/picker:opacity-100 md:group-hover/picker:scale-100 md:group-hover/picker:pointer-events-auto"
+                      }`}
+                    >
                       {REACTION_EMOJIS.map((emoji) => (
                         <button
                           key={emoji}
