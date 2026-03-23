@@ -46,7 +46,6 @@ interface Announcement {
 const Announcements = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [react, setReact] = useState<Boolean>(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
