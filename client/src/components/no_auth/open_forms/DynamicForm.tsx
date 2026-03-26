@@ -234,7 +234,7 @@ const DynamicForm = () => {
           } else if (name === "email") {
             player1.email = value;
             shouldUpdate = true;
-          } else if (name === "number") {
+          } else if (name === "number" || name === "phone") {
             player1.phone = value;
             shouldUpdate = true;
           }
@@ -646,7 +646,10 @@ const DynamicForm = () => {
             <h1 className="text-3xl font-bold tracking-tight text-white text-center">
               {formSchema.formTitle}
             </h1>
-            <p className="text-sm text-neutral-400 text-center leading-relaxed max-w-2xl mx-auto">
+            <p
+              className="text-sm text-neutral-400 leading-relaxed max-w-2xl mx-auto"
+              style={{ whiteSpace: "pre-line" }}
+            >
               {formSchema.formDescription}
             </p>
 
@@ -840,6 +843,22 @@ const DynamicForm = () => {
                           </div>
                         )}
                       </div>
+                    ) : field.type === "textarea" ? (
+                      <>
+                        <textarea
+                          name={field.name}
+                          value={formData[field.name] || ""}
+                          placeholder={field.placeholder}
+                          required={field.required}
+                          onChange={(e: any) => handleChange(e)}
+                          rows={5}
+                          className={`w-full rounded-md border ${
+                            errors[field.name]
+                              ? "border-red-500"
+                              : "border-neutral-800"
+                          } bg-neutral-950 px-4 py-3 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-[#B61C23] focus:ring-1 focus:ring-[#B61C23] transition-all resize-y min-h-[120px]`}
+                        />
+                      </>
                     ) : (
                       <>
                         <input

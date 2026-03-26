@@ -98,16 +98,9 @@ const DrawTeamsModal = ({
     }
 
     // Filter teams by sport AND type (only tournament teams can be drawn)
-    let filteredTeams = teams.filter(
+    const filteredTeams = teams.filter(
       (t) => t.sport === selectedSport && t.teamType === "event",
     );
-
-    // If Group format, filter by team size
-    if (format === "Group") {
-      filteredTeams = filteredTeams.filter(
-        (t) => t.members.length === teamSize,
-      );
-    }
 
     if (filteredTeams.length === 0) {
       alert("No teams match the selected criteria");
