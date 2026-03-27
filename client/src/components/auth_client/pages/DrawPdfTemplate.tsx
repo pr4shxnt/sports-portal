@@ -32,7 +32,11 @@ const KnockoutPdfTemplate = ({ draw }: { draw: any }) => {
   const minHeight = Math.max(600, rounds[0] * 70);
 
   return (
-    <div className="flex w-full" style={{ minHeight: `${minHeight}px` }}>
+    <div
+      className="flex w-full"
+      style={{ minHeight: `${minHeight}px` }}
+      data-pdf-section="knockout-bracket"
+    >
       {rounds.map((roundSize, roundIdx) => {
         const boxColor =
           ROUND_COLORS[Math.min(roundIdx, ROUND_COLORS.length - 1)];
@@ -204,7 +208,7 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "60px" }}>
       {/* ── SECTION 1: Group Assignments ── */}
-      <div>
+      <div data-pdf-section="group-assignments">
         <div
           style={{
             fontSize: "11px",
@@ -294,7 +298,7 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
       </div>
 
       {/* ── SECTION 2: Match Schedule ── */}
-      <div>
+      <div data-pdf-section="match-schedule">
         <div
           style={{
             fontSize: "11px",
@@ -512,7 +516,7 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
       </div>
 
       {/* ── SECTION 3: Group Standings ── */}
-      <div>
+      <div data-pdf-section="group-standings">
         <div
           style={{
             fontSize: "11px",
@@ -720,9 +724,11 @@ export const DrawPdfTemplate = ({
       id="pdf-export-content"
       className="bg-white text-black font-sans pb-12"
       style={{ width: "1200px", maxWidth: "100%" }}
+      data-pdf-section="document"
     >
       {/* ── HEADER (white, red bottom border) ── */}
       <div
+        data-pdf-section="document-header"
         style={{
           background: "#fff",
           padding: "32px 48px",
@@ -809,7 +815,11 @@ export const DrawPdfTemplate = ({
 
       {/* ── DRAWS ── */}
       {draws.map((draw) => (
-        <div key={draw._id} style={{ marginBottom: "56px", padding: "0 48px" }}>
+        <div
+          key={draw._id}
+          style={{ marginBottom: "56px", padding: "0 48px" }}
+          data-pdf-section="draw-block"
+        >
           {/* Section title */}
           <div
             style={{
