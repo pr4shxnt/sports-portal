@@ -49,7 +49,11 @@ const KnockoutPdfTemplate = ({ draw }: { draw: any }) => {
             >
               <div
                 className="relative w-full shadow-md text-white font-bold p-3 text-center z-10"
-                style={{ backgroundColor: boxColor, wordBreak: "break-word", overflowWrap: "break-word" }}
+                style={{
+                  backgroundColor: boxColor,
+                  wordBreak: "break-word",
+                  overflowWrap: "break-word",
+                }}
               >
                 {champion ? champion.name : ""}
               </div>
@@ -98,7 +102,11 @@ const KnockoutPdfTemplate = ({ draw }: { draw: any }) => {
                   <div className="relative">
                     <div
                       className="w-full text-white font-bold p-3 text-center shadow-md relative z-10"
-                      style={{ backgroundColor: boxColor, wordBreak: "break-word", overflowWrap: "break-word" }}
+                      style={{
+                        backgroundColor: boxColor,
+                        wordBreak: "break-word",
+                        overflowWrap: "break-word",
+                      }}
                     >
                       {team1 ? team1.name : "To be determined"}
                     </div>
@@ -111,7 +119,11 @@ const KnockoutPdfTemplate = ({ draw }: { draw: any }) => {
                   <div className="relative">
                     <div
                       className="w-full text-white font-bold p-3 text-center shadow-md relative z-10"
-                      style={{ backgroundColor: boxColor, wordBreak: "break-word", overflowWrap: "break-word" }}
+                      style={{
+                        backgroundColor: boxColor,
+                        wordBreak: "break-word",
+                        overflowWrap: "break-word",
+                      }}
                     >
                       {team2 ? team2.name : "To be determined"}
                     </div>
@@ -189,11 +201,28 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
         let P = 0,
           W = 0,
           L = 0,
-          Pts = 0;
+          Pts = 0,
+          SF = 0,
+          SA = 0;
         groupTeams.forEach((opp) => {
           if (opp._id === team._id) return;
           const mid = groupMatchId(gName, team, opp);
           const result = draw.matchResults?.[mid];
+          const score = draw.matchScores?.[mid];
+          if (score && result) {
+            const parts = score.split(/\s*-\s*/).map(Number);
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+              const high = Math.max(parts[0], parts[1]);
+              const low = Math.min(parts[0], parts[1]);
+              if (result === team._id) {
+                SF += high;
+                SA += low;
+              } else {
+                SF += low;
+                SA += high;
+              }
+            }
+          }
           if (!result) return;
           P++;
           if (result === team._id) {
@@ -201,9 +230,9 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
             Pts++;
           } else L++;
         });
-        return { team, P, W, L, Pts };
+        return { team, P, W, L, Pts, Diff: SF - SA };
       })
-      .sort((a, b) => (b.Pts !== a.Pts ? b.Pts - a.Pts : b.W - a.W));
+      .sort((a, b) => (b.Pts !== a.Pts ? b.Pts - a.Pts : b.Diff - a.Diff));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "60px" }}>
@@ -569,7 +598,7 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
                       >
                         TEAM
                       </th>
-                      {["P", "W", "L", "PTS"].map((h) => (
+                      {["P", "W", "L", "DIFF", "PTS"].map((h) => (
                         <th
                           key={h}
                           style={{
@@ -677,6 +706,23 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
                           style={{
                             padding: "16px 12px",
                             textAlign: "center",
+                            fontSize: "13px",
+                            fontWeight: 800,
+                            color:
+                              row.Diff > 0
+                                ? "#16a34a"
+                                : row.Diff < 0
+                                  ? "#dc2626"
+                                  : "#a1a1aa",
+                            lineHeight: "1.4",
+                          }}
+                        >
+                          {row.Diff > 0 ? `+${row.Diff}` : row.Diff}
+                        </td>
+                        <td
+                          style={{
+                            padding: "16px 12px",
+                            textAlign: "center",
                             fontSize: "14px",
                             fontWeight: 900,
                             color: "#18181b",
@@ -724,7 +770,6 @@ export const DrawPdfTemplate = ({
       id="pdf-export-content"
       className="bg-white text-black font-sans pb-12"
       style={{ width: "1200px", maxWidth: "100%" }}
-      data-pdf-section="document"
     >
       {/* ── HEADER (white, red bottom border) ── */}
       <div
@@ -815,11 +860,7 @@ export const DrawPdfTemplate = ({
 
       {/* ── DRAWS ── */}
       {draws.map((draw) => (
-        <div
-          key={draw._id}
-          style={{ marginBottom: "56px", padding: "0 48px" }}
-          data-pdf-section="draw-block"
-        >
+        <div key={draw._id} style={{ marginBottom: "56px", padding: "0 48px" }}>
           {/* Section title */}
           <div
             style={{
