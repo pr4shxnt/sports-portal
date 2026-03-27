@@ -151,14 +151,24 @@ const EventDetails = () => {
       container.style.height = "auto";
       container.style.overflow = "visible";
 
-      // Collect row bottom positions (in DOM/CSS pixels, relative to container top)
-      // before html2canvas captures the content, so we can compute smart page breaks.
       const containerTop = container.getBoundingClientRect().top;
       const containerScrollWidth = container.scrollWidth;
+      // Collect row bottom positions (in DOM/CSS pixels, relative to container top)
+      // before html2canvas captures the content, so we can compute smart page breaks.
       const rows = container.querySelectorAll("tr");
       const rowBottomsDom = Array.from(rows).map(
         (row) => row.getBoundingClientRect().bottom - containerTop,
       );
+      // Collect high-level section bounds so we can avoid splitting them across pages
+      const sectionRectsDom = Array.from(
+        container.querySelectorAll("[data-pdf-section]"),
+      ).map((el) => {
+        const rect = el.getBoundingClientRect();
+        return {
+          top: rect.top - containerTop,
+          bottom: rect.bottom - containerTop,
+        };
+      });
 
       // html2canvas config
       const canvas = await html2canvas(container, {
@@ -224,10 +234,13 @@ const EventDetails = () => {
 
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
+      const pageMargin = 24;
+      const usableWidth = pdfWidth - pageMargin * 2;
+      const usableHeight = pdfHeight - pageMargin * 2;
 
       // Scale to fit width primarily
-      const widthScale = pdfWidth / canvas.width;
-      const imgWidth = pdfWidth;
+      const widthScale = usableWidth / canvas.width;
+      const imgWidth = usableWidth;
       const imgHeight = canvas.height * widthScale;
 
       const imgData = canvas.toDataURL("image/jpeg", 1.0);
@@ -237,39 +250,64 @@ const EventDetails = () => {
       // DOM CSS px → canvas px: multiply by (canvas.width / containerScrollWidth)
       // Canvas px → PDF pt:     multiply by widthScale
       const domToCanvasScale = canvas.width / containerScrollWidth;
-      const rowBottomsPdf = rowBottomsDom.map(
-        (y) => y * domToCanvasScale * widthScale,
-      );
+      const domToPdfScale = domToCanvasScale * widthScale;
+      const rowBottomsPdf = rowBottomsDom.map((y) => y * domToPdfScale);
+      const sectionRectsPdf = sectionRectsDom.map(({ top, bottom }) => ({
+        top: top * domToPdfScale,
+        bottom: bottom * domToPdfScale,
+      }));
 
       // Build a list of page-start positions using smart (row-aware) breaks.
       const pageStarts: number[] = [0];
       let currentStart = 0;
-      while (currentStart + pdfHeight < imgHeight) {
-        const nominalBreak = currentStart + pdfHeight;
-        // Find the bottom of the last row that fits entirely on this page.
+      const minGap = 12;
+      while (currentStart + usableHeight < imgHeight) {
+        const nominalBreak = currentStart + usableHeight;
+
+        // If a section would be split and it fits on a single page, push it to the next page.
+        const overflowingSection = sectionRectsPdf.find(
+          ({ top, bottom }) =>
+            top < nominalBreak &&
+            bottom > nominalBreak &&
+            bottom - top <= usableHeight,
+        );
+
         let smartBreak = nominalBreak;
-        for (let i = rowBottomsPdf.length - 1; i >= 0; i--) {
-          if (rowBottomsPdf[i] <= nominalBreak && rowBottomsPdf[i] > currentStart) {
-            smartBreak = rowBottomsPdf[i];
-            break;
+        if (overflowingSection) {
+          smartBreak = overflowingSection.top;
+        } else {
+          // Otherwise, try to break on the last full row that fits.
+          const rowsBeforeBreak = rowBottomsPdf.filter(
+            (y) => y > currentStart + minGap && y <= nominalBreak,
+          );
+          if (rowsBeforeBreak.length) {
+            smartBreak = rowsBeforeBreak[rowsBeforeBreak.length - 1];
           }
         }
-        // Safety: ensure forward progress even when no suitable row boundary exists
-        // (e.g. a row taller than a full page, or no rows at all).
-        if (smartBreak <= currentStart) {
+
+        // Safety: ensure forward progress even when no suitable boundary exists
+        if (smartBreak <= currentStart + minGap) {
           smartBreak = nominalBreak;
         }
+
         pageStarts.push(smartBreak);
         currentStart = smartBreak;
       }
 
       // Add first page
-      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
+      pdf.addImage(imgData, "JPEG", pageMargin, pageMargin, imgWidth, imgHeight);
 
       // Add remaining pages, offsetting the image so the correct slice is visible
       for (let i = 1; i < pageStarts.length; i++) {
         pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 0, -pageStarts[i], imgWidth, imgHeight);
+        pdf.addImage(
+          imgData,
+          "JPEG",
+          pageMargin,
+          pageMargin - pageStarts[i],
+          imgWidth,
+          imgHeight,
+        );
       }
 
       pdf.save(`${event?.title?.replace(/\s+/g, "_") || "Event"}_Draws.pdf`);
