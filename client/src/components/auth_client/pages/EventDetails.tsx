@@ -151,6 +151,15 @@ const EventDetails = () => {
       container.style.height = "auto";
       container.style.overflow = "visible";
 
+      // Collect row bottom positions (in DOM/CSS pixels, relative to container top)
+      // before html2canvas captures the content, so we can compute smart page breaks.
+      const containerTop = container.getBoundingClientRect().top;
+      const containerScrollWidth = container.scrollWidth;
+      const rows = container.querySelectorAll("tr");
+      const rowBottomsDom = Array.from(rows).map(
+        (row) => row.getBoundingClientRect().bottom - containerTop,
+      );
+
       // html2canvas config
       const canvas = await html2canvas(container, {
         scale: 2, // Higher scale for better resolution
@@ -159,7 +168,7 @@ const EventDetails = () => {
         backgroundColor: document.documentElement.classList.contains("dark")
           ? "#18181b" // zinc-900 for dark mode background
           : "#ffffff",
-        windowWidth: container.scrollWidth, // Ensure we capture full width for scrolling brackets
+        windowWidth: containerScrollWidth, // Ensure we capture full width for scrolling brackets
         onclone: (documentClone) => {
           // html2canvas crashes resolving OKLCH and OKLAB colors, which might be added by Tailwind v4.
           // We manually find elements in the clone with OKLCH/OKLAB variables and replace them.
@@ -221,20 +230,46 @@ const EventDetails = () => {
       const imgWidth = pdfWidth;
       const imgHeight = canvas.height * widthScale;
 
-      let heightLeft = imgHeight;
-      let position = 0;
       const imgData = canvas.toDataURL("image/jpeg", 1.0);
 
-      // Add first page
-      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
+      // Convert DOM row bottom positions to PDF point coordinates so we can
+      // snap page breaks to row boundaries instead of cutting mid-row.
+      // DOM CSS px → canvas px: multiply by (canvas.width / containerScrollWidth)
+      // Canvas px → PDF pt:     multiply by widthScale
+      const domToCanvasScale = canvas.width / containerScrollWidth;
+      const rowBottomsPdf = rowBottomsDom.map(
+        (y) => y * domToCanvasScale * widthScale,
+      );
 
-      // New pages if needed
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
+      // Build a list of page-start positions using smart (row-aware) breaks.
+      const pageStarts: number[] = [0];
+      let currentStart = 0;
+      while (currentStart + pdfHeight < imgHeight) {
+        const nominalBreak = currentStart + pdfHeight;
+        // Find the bottom of the last row that fits entirely on this page.
+        let smartBreak = nominalBreak;
+        for (let i = rowBottomsPdf.length - 1; i >= 0; i--) {
+          if (rowBottomsPdf[i] <= nominalBreak && rowBottomsPdf[i] > currentStart) {
+            smartBreak = rowBottomsPdf[i];
+            break;
+          }
+        }
+        // Safety: ensure forward progress even when no suitable row boundary exists
+        // (e.g. a row taller than a full page, or no rows at all).
+        if (smartBreak <= currentStart) {
+          smartBreak = nominalBreak;
+        }
+        pageStarts.push(smartBreak);
+        currentStart = smartBreak;
+      }
+
+      // Add first page
+      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
+
+      // Add remaining pages, offsetting the image so the correct slice is visible
+      for (let i = 1; i < pageStarts.length; i++) {
         pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+        pdf.addImage(imgData, "JPEG", 0, -pageStarts[i], imgWidth, imgHeight);
       }
 
       pdf.save(`${event?.title?.replace(/\s+/g, "_") || "Event"}_Draws.pdf`);
