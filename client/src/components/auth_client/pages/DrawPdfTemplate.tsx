@@ -41,11 +41,11 @@ const KnockoutPdfTemplate = ({ draw }: { draw: any }) => {
           return (
             <div
               key={roundIdx}
-              className="flex-1 flex flex-col justify-center relative px-6 z-10"
+              className="flex-1 flex flex-col items-center justify-center relative px-6 z-10"
             >
               <div
                 className="relative w-full shadow-md text-white font-bold p-3 text-center z-10"
-                style={{ backgroundColor: boxColor }}
+                style={{ backgroundColor: boxColor, wordBreak: "break-word", overflowWrap: "break-word" }}
               >
                 {champion ? champion.name : ""}
               </div>
@@ -94,7 +94,7 @@ const KnockoutPdfTemplate = ({ draw }: { draw: any }) => {
                   <div className="relative">
                     <div
                       className="w-full text-white font-bold p-3 text-center shadow-md relative z-10"
-                      style={{ backgroundColor: boxColor }}
+                      style={{ backgroundColor: boxColor, wordBreak: "break-word", overflowWrap: "break-word" }}
                     >
                       {team1 ? team1.name : "To be determined"}
                     </div>
@@ -107,7 +107,7 @@ const KnockoutPdfTemplate = ({ draw }: { draw: any }) => {
                   <div className="relative">
                     <div
                       className="w-full text-white font-bold p-3 text-center shadow-md relative z-10"
-                      style={{ backgroundColor: boxColor }}
+                      style={{ backgroundColor: boxColor, wordBreak: "break-word", overflowWrap: "break-word" }}
                     >
                       {team2 ? team2.name : "To be determined"}
                     </div>
@@ -280,6 +280,8 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
                       color: "#18181b",
                       textTransform: "uppercase",
                       lineHeight: "1.4",
+                      wordBreak: "break-word",
+                      overflowWrap: "break-word",
                     }}
                   >
                     {team.name}
@@ -323,7 +325,8 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
                   textAlign: "left",
                   fontWeight: 800,
                   fontSize: "11px",
-                  width: "100px",
+                  width: "90px",
+                  whiteSpace: "nowrap",
                 }}
               >
                 MATCH
@@ -335,7 +338,6 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
                   textAlign: "right",
                   fontWeight: 800,
                   fontSize: "11px",
-                  width: "35%",
                 }}
               >
                 TEAM 1
@@ -347,7 +349,8 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
                   textAlign: "center",
                   fontWeight: 800,
                   fontSize: "11px",
-                  width: "120px",
+                  width: "110px",
+                  whiteSpace: "nowrap",
                 }}
               >
                 SCORE
@@ -359,7 +362,6 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
                   textAlign: "left",
                   fontWeight: 800,
                   fontSize: "11px",
-                  width: "35%",
                 }}
               >
                 TEAM 2
@@ -371,7 +373,8 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
                   textAlign: "center",
                   fontWeight: 800,
                   fontSize: "11px",
-                  width: "100px",
+                  width: "90px",
+                  whiteSpace: "nowrap",
                 }}
               >
                 RESULT
@@ -418,6 +421,8 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
                         fontSize: "13px",
                         textTransform: "uppercase",
                         lineHeight: "1.5",
+                        wordBreak: "break-word",
+                        overflowWrap: "break-word",
                       }}
                     >
                       {t1.name}
@@ -463,6 +468,8 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
                         fontSize: "13px",
                         textTransform: "uppercase",
                         lineHeight: "1.5",
+                        wordBreak: "break-word",
+                        overflowWrap: "break-word",
                       }}
                     >
                       {t2.name}
@@ -618,6 +625,8 @@ const GroupPdfTemplate = ({ draw }: { draw: any }) => {
                                 fontSize: "13px",
                                 color: "#18181b",
                                 textTransform: "uppercase",
+                                wordBreak: "break-word",
+                                overflowWrap: "break-word",
                               }}
                             >
                               {row.team.name}
@@ -709,7 +718,8 @@ export const DrawPdfTemplate = ({
   return (
     <div
       id="pdf-export-content"
-      className="w-[1200px] bg-white text-black font-sans pb-12"
+      className="bg-white text-black font-sans pb-12"
+      style={{ width: "1200px", maxWidth: "100%" }}
     >
       {/* ── HEADER (white, red bottom border) ── */}
       <div
@@ -749,6 +759,8 @@ export const DrawPdfTemplate = ({
               textTransform: "uppercase",
               letterSpacing: "-0.02em",
               lineHeight: 1.1,
+              wordBreak: "break-word",
+              overflowWrap: "break-word",
             }}
           >
             {eventTitle}
@@ -814,6 +826,8 @@ export const DrawPdfTemplate = ({
                 textTransform: "uppercase",
                 color: "#18181b",
                 letterSpacing: "0.05em",
+                wordBreak: "break-word",
+                overflowWrap: "break-word",
               }}
             >
               {draw.sport}
