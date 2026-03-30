@@ -935,3 +935,265 @@ export const DrawPdfTemplate = ({
     </div>
   );
 };
+
+/* ─────────────────────────────────────────
+   TEAMS LIST TEMPLATE
+───────────────────────────────────────── */
+export const TeamsPdfTemplate = ({
+  sport,
+  teams,
+}: {
+  sport: string;
+  teams: any[];
+}) => {
+  return (
+    <div
+      id="pdf-teams-content"
+      className="bg-white text-black font-sans pb-12"
+      style={{ width: "1200px", maxWidth: "100%" }}
+    >
+      {/* ── HEADER ── */}
+      <div
+        data-pdf-section="document-header"
+        style={{
+          background: "#fff",
+          padding: "32px 48px",
+          display: "flex",
+          alignItems: "center",
+          gap: "24px",
+          marginBottom: "48px",
+          borderBottom: "4px solid #DD1D25",
+        }}
+      >
+        <img
+          src={logo}
+          alt="SSRC Sports Club"
+          style={{ width: "80px", height: "80px", objectFit: "contain" }}
+        />
+        <div style={{ flex: 1 }}>
+          <div
+            style={{
+              fontSize: "10px",
+              fontWeight: 700,
+              color: "#DD1D25",
+              textTransform: "uppercase",
+              letterSpacing: "0.35em",
+              marginBottom: "4px",
+            }}
+          >
+            SSRC Sports Club
+          </div>
+          <div
+            style={{
+              fontSize: "34px",
+              fontWeight: 900,
+              color: "#18181b",
+              textTransform: "uppercase",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.1,
+              wordBreak: "break-word",
+              overflowWrap: "break-word",
+            }}
+          >
+            {sport}
+          </div>
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "#71717a",
+              textTransform: "uppercase",
+              letterSpacing: "0.2em",
+              marginTop: "8px",
+            }}
+          >
+            Official Registered Teams
+          </div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div
+            style={{
+              fontSize: "10px",
+              color: "#71717a",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+            }}
+          >
+            Issued
+          </div>
+          <div
+            style={{
+              fontSize: "13px",
+              color: "#52525b",
+              fontWeight: 700,
+              marginTop: "4px",
+            }}
+          >
+            {new Date().toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── TEAMS LIST ── */}
+      <div style={{ padding: "0 48px" }}>
+        {teams.map((team, index) => (
+          <div
+            key={team._id}
+            data-pdf-section="team-info"
+            style={{
+              marginBottom: "40px",
+              border: "1px solid #e5e7eb",
+              borderRadius: "12px",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                background: "#18181b",
+                padding: "16px 24px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span
+                style={{
+                  color: "#fff",
+                  fontWeight: 900,
+                  fontSize: "18px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                {index + 1}. {team.name}
+              </span>
+              <span
+                style={{
+                  background: "#DD1D25",
+                  color: "#fff",
+                  fontSize: "10px",
+                  fontWeight: 800,
+                  padding: "4px 12px",
+                  borderRadius: "100px",
+                  textTransform: "uppercase",
+                }}
+              >
+                {team.teamType}
+              </span>
+            </div>
+
+            <div style={{ padding: "24px", background: "#ffffff" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, 1fr)",
+                  gap: "24px",
+                }}
+              >
+                {team.members.map((member: any, mIdx: number) => (
+                  <div
+                    key={mIdx}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "16px",
+                      padding: "14px",
+                      background: mIdx === 0 ? "#fff5f5" : "#f9fafb",
+                      border:
+                        mIdx === 0 ? "1px solid #DD1D25" : "1px solid #f3f4f6",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "32px",
+                        height: "32px",
+                        borderRadius: "50%",
+                        background: mIdx === 0 ? "#DD1D25" : "#d1d5db",
+                        color: mIdx === 0 ? "#fff" : "#4b5563",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: 900,
+                        fontSize: "12px",
+                      }}
+                    >
+                      {mIdx === 0 ? "C" : mIdx + 1}
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          fontWeight: 800,
+                          fontSize: "14px",
+                          color: "#18181b",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
+                        {member.name}
+                        {mIdx === 0 && (
+                          <span
+                            style={{
+                              fontSize: "8px",
+                              background: "#DD1D25",
+                              color: "#fff",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            Captain
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: mIdx === 0 ? "#7a1a1e" : "#52525b",
+                          marginTop: "2px",
+                        }}
+                      >
+                        {member.email} • {member.phone}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── FOOTER ── */}
+      <div
+        style={{
+          borderTop: "1px solid #f4f4f5",
+          margin: "48px 48px 0",
+          paddingTop: "16px",
+          display: "flex",
+          justifyContent: "space-between",
+        }}
+      >
+        <span
+          style={{
+            fontSize: "9px",
+            color: "#a1a1aa",
+            textTransform: "uppercase",
+            letterSpacing: "0.15em",
+          }}
+        >
+          SSRC Sports Club — Official Document
+        </span>
+        <span style={{ fontSize: "9px", color: "#a1a1aa" }}>
+          {new Date().getFullYear()} · Confidential
+        </span>
+      </div>
+    </div>
+  );
+};
