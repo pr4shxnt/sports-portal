@@ -2,6 +2,30 @@ import type { Request, Response } from "express";
 import Meeting from "../models/Meeting.js";
 import { sendMeetingInvitationEmail } from "../utils/emailHelper.js";
 
+type RecipientInput = string | { email: string; name?: string };
+
+const normalizeRecipients = (
+  list?: RecipientInput | RecipientInput[],
+): { email: string; name?: string }[] => {
+  if (!list) return [];
+  const arr = Array.isArray(list) ? list : [list];
+  const normalized = arr
+    .map((item) =>
+      typeof item === "string"
+        ? { email: item, name: undefined }
+        : { email: item.email, name: item.name },
+    )
+    .filter((item) => item.email);
+
+  const seen = new Set<string>();
+  return normalized.filter((item) => {
+    const key = item.email.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export const createMeeting = async (req: Request, res: Response) => {
   try {
     const {
@@ -13,7 +37,7 @@ export const createMeeting = async (req: Request, res: Response) => {
       meetingLink,
       date,
       time,
-      participants, // array of emails or { email, name }
+      participants, // optional array of emails or { email, name }
       recipientName, // optional greeting provided by frontend
       to,
       cc,
@@ -38,24 +62,29 @@ export const createMeeting = async (req: Request, res: Response) => {
         .json({ message: "Meeting link is required for virtual meetings" });
     }
 
-    if (!participants || participants.length === 0) {
+    const toArr = Array.isArray(to) ? to : to ? [to] : [];
+    const ccArr = Array.isArray(cc) ? cc : cc ? [cc] : [];
+    const bccArr = Array.isArray(bcc) ? bcc : bcc ? [bcc] : [];
+    const participantArr = Array.isArray(participants)
+      ? participants
+      : participants
+        ? [participants]
+        : [];
+
+    const allRecipientObjects = normalizeRecipients([
+      ...participantArr,
+      ...toArr,
+      ...ccArr,
+      ...bccArr,
+    ]);
+
+    if (allRecipientObjects.length === 0) {
       return res
         .status(400)
-        .json({ message: "At least one participant is required" });
+        .json({ message: "At least one recipient (to/cc/bcc) is required" });
     }
 
-    const participantObjects = (participants as any[]).map((p) =>
-      typeof p === "string" ? { email: p, name: undefined } : p,
-    );
-
-    const filteredParticipants = participantObjects.filter((p) => p?.email);
-    if (filteredParticipants.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "At least one participant email is required" });
-    }
-
-    const participantEmails = filteredParticipants.map((p) => p.email);
+    const participantEmails = allRecipientObjects.map((p) => p.email);
 
     const meeting = await Meeting.create({
       title,
@@ -91,7 +120,7 @@ export const createMeeting = async (req: Request, res: Response) => {
         type,
         venue,
         roomNo,
-        allParticipants: filteredParticipants,
+        allParticipants: allRecipientObjects,
       });
     } catch (emailErr) {
       console.error("[Meeting] Failed to send meeting invitation:", emailErr);

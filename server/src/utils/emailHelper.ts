@@ -310,17 +310,20 @@ export const sendMeetingInvitationEmail = async (
     process.env.SPORTS_CLUB_EMAIL ||
     "sportsclub@sunway.edu.np";
 
-  const participantObjects = normalizeRecipientObjects(params.allParticipants);
+  const attendeeObjects = normalizeRecipientObjects(params.allParticipants);
   const toObjects = normalizeRecipientObjects(toInput || clubEmail);
-  const ccObjects = normalizeRecipientObjects(ccInput || participantObjects);
+  const ccObjects = normalizeRecipientObjects(ccInput);
   const bccObjects = normalizeRecipientObjects(bccInput);
 
-  const participantList = formatRecipients(participantObjects);
   const toList = formatRecipients(toObjects);
   const ccList = formatRecipients(ccObjects);
   const bccList = formatRecipients(bccObjects);
 
-  const attendeeList = participantObjects.map((p) => ({
+  const toField = toList.length ? toList : [clubEmail];
+  const ccField = ccList.length ? ccList : undefined;
+  const bccField = bccList.length ? bccList : undefined;
+
+  const attendeeList = attendeeObjects.map((p) => ({
     name: p.name || p.email,
     email: p.email,
   }));
@@ -389,9 +392,9 @@ export const sendMeetingInvitationEmail = async (
 
   const mailOptions = {
     from: `"Sports Club" <${process.env.EMAIL_USER_OFFICIAL}>`,
-    to: toList,
-    cc: ccList,
-    bcc: bccList,
+    to: toField,
+    cc: ccField,
+    bcc: bccField,
     subject: title,
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #333;">

@@ -282,9 +282,9 @@ export interface MeetingCreate {
   meetingLink?: string;
   date: string;
   time: string;
-  participants: MeetingParticipantInput[];
+  participants?: MeetingParticipantInput[];
   recipientName?: string;
-  to?: string[];
-  cc?: string[];
-  bcc?: string[];
+  to?: MeetingParticipantInput[];
+  cc?: MeetingParticipantInput[];
+  bcc?: MeetingParticipantInput[];
 }

@@ -19,12 +19,6 @@ import {
   Search,
 } from "lucide-react";
 
-const parseEmails = (value: string): string[] =>
-  value
-    .split(",")
-    .map((e) => e.trim())
-    .filter((e) => e.length > 0);
-
 // Debounce hook
 function useDebounce(value: string, delay: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -40,6 +34,226 @@ interface UserSearchResult {
   name: string;
   email: string;
   role: string;
+}
+
+type RecipientField = "to" | "cc" | "bcc";
+
+interface RecipientSectionProps {
+  label: string;
+  field: RecipientField;
+  value: MeetingCreate[RecipientField];
+  onChange: (field: RecipientField, recipients: MeetingCreate[RecipientField]) => void;
+  usedEmails: Set<string>;
+}
+
+function RecipientSection({ label, field, value, onChange, usedEmails }: RecipientSectionProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [externalEmail, setExternalEmail] = useState("");
+  const [externalEmailError, setExternalEmailError] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 300);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch internal users
+  useEffect(() => {
+    if (debouncedSearch.trim().length < 2) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    const fetchUsers = async () => {
+      try {
+        setSearching(true);
+        const res = await api.get<UserSearchResult[]>(
+          `/users/search?q=${encodeURIComponent(debouncedSearch)}`,
+        );
+        const filtered = res.data.filter(
+          (u) => !usedEmails.has(u.email.toLowerCase()),
+        );
+        setSearchResults(filtered);
+        setShowDropdown(true);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    };
+
+    fetchUsers();
+  }, [debouncedSearch, usedEmails]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectUser = (user: UserSearchResult) => {
+    if (!usedEmails.has(user.email.toLowerCase())) {
+      onChange(field, [...(value || []), { email: user.email, name: user.name }]);
+    }
+    setSearchQuery("");
+    setSearchResults([]);
+    setShowDropdown(false);
+  };
+
+  const handleAddExternalEmail = () => {
+    const email = externalEmail.trim().toLowerCase();
+    if (!email) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setExternalEmailError("Please enter a valid email address");
+      return;
+    }
+
+    if (usedEmails.has(email)) {
+      setExternalEmailError("This email has already been added");
+      return;
+    }
+
+    onChange(field, [...(value || []), { email }]);
+    setExternalEmail("");
+    setExternalEmailError("");
+  };
+
+  const handleExternalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      handleAddExternalEmail();
+    }
+  };
+
+  const handleRemove = (email: string) => {
+    onChange(
+      field,
+      (value || []).filter((r) => r.email.toLowerCase() !== email.toLowerCase()),
+    );
+  };
+
+  return (
+    <div className="space-y-3">
+      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        {label}
+      </label>
+
+      <div className="relative" ref={dropdownRef}>
+        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+          Add from portal users
+        </label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => {
+              if (searchResults.length > 0) setShowDropdown(true);
+            }}
+            placeholder="Search by name or email..."
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#DD1D25]/50"
+          />
+          {searching && (
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-zinc-400" />
+          )}
+        </div>
+
+        {showDropdown && searchResults.length > 0 && (
+          <div className="absolute z-20 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+            {searchResults.map((u) => (
+              <button
+                key={u._id}
+                type="button"
+                onClick={() => handleSelectUser(u)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-sm"
+              >
+                <div className="w-8 h-8 rounded-full bg-[#DD1D25] text-white flex items-center justify-center text-xs font-semibold shrink-0">
+                  {u.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                    {u.name}
+                  </p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                    {u.email}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+        {showDropdown &&
+          searchResults.length === 0 &&
+          debouncedSearch.length >= 2 &&
+          !searching && (
+            <div className="absolute z-20 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg px-3 py-3 text-sm text-zinc-500">
+              No users found
+            </div>
+          )}
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+          Add external email
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={externalEmail}
+            onChange={(e) => {
+              setExternalEmail(e.target.value);
+              setExternalEmailError("");
+            }}
+            onKeyDown={handleExternalKeyDown}
+            placeholder="external@example.com"
+            className="flex-1 px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#DD1D25]/50"
+          />
+          <button
+            type="button"
+            onClick={handleAddExternalEmail}
+            className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg text-sm font-medium hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors"
+          >
+            Add
+          </button>
+        </div>
+        {externalEmailError && (
+          <p className="text-xs text-red-500 mt-1">{externalEmailError}</p>
+        )}
+      </div>
+
+      {value && value.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {value.map((p) => (
+            <span
+              key={p.email}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
+            >
+              <Mail className="w-3 h-3" />
+              {p.name ? `${p.name} <${p.email}>` : p.email}
+              <button
+                type="button"
+                onClick={() => handleRemove(p.email)}
+                className="ml-0.5 hover:text-red-500 transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function MeetingManagement() {
@@ -61,71 +275,14 @@ export default function MeetingManagement() {
     meetingLink: "",
     date: "",
     time: "",
-    participants: [],
     recipientName: "",
     to: [],
     cc: [],
     bcc: [],
   });
 
-  // Internal user search
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const debouncedSearch = useDebounce(searchQuery, 300);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // External email input
-  const [externalEmail, setExternalEmail] = useState("");
-  const [externalEmailError, setExternalEmailError] = useState("");
-
   useEffect(() => {
     fetchMeetings();
-  }, []);
-
-  // Debounced search effect
-  useEffect(() => {
-    if (debouncedSearch.trim().length < 2) {
-      setSearchResults([]);
-      setShowDropdown(false);
-      return;
-    }
-
-    const fetchUsers = async () => {
-      try {
-        setSearching(true);
-        const res = await api.get<UserSearchResult[]>(
-          `/users/search?q=${encodeURIComponent(debouncedSearch)}`,
-        );
-        // Filter out already-added participants
-        const filtered = res.data.filter(
-          (u) => !form.participants.some((p) => p.email === u.email),
-        );
-        setSearchResults(filtered);
-        setShowDropdown(true);
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setSearching(false);
-      }
-    };
-
-    fetchUsers();
-  }, [debouncedSearch]);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
-        setShowDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const fetchMeetings = async () => {
@@ -140,60 +297,14 @@ export default function MeetingManagement() {
     }
   };
 
-  const handleSelectUser = (user: UserSearchResult) => {
-    if (!form.participants.some((p) => p.email === user.email)) {
-      setForm((prev) => ({
-        ...prev,
-        participants: [...prev.participants, { email: user.email, name: user.name }],
-      }));
-    }
-    setSearchQuery("");
-    setSearchResults([]);
-    setShowDropdown(false);
-  };
-
-  const handleAddExternalEmail = () => {
-    const email = externalEmail.trim().toLowerCase();
-    if (!email) return;
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setExternalEmailError("Please enter a valid email address");
-      return;
-    }
-
-    if (form.participants.some((p) => p.email === email)) {
-      setExternalEmailError("This email has already been added");
-      return;
-    }
-
-    setForm((prev) => ({
-      ...prev,
-      participants: [...prev.participants, { email }],
-    }));
-    setExternalEmail("");
-    setExternalEmailError("");
-  };
-
-  const handleExternalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      handleAddExternalEmail();
-    }
-  };
-
-  const handleRemoveEmail = (email: string) => {
-    setForm((prev) => ({
-      ...prev,
-      participants: prev.participants.filter((e) => e.email !== email),
-    }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (form.participants.length === 0) {
-      toast.error("Please add at least one participant");
+    const recipientCount =
+      (form.to?.length || 0) + (form.cc?.length || 0) + (form.bcc?.length || 0);
+
+    if (recipientCount === 0) {
+      toast.error("Please add at least one recipient in To/CC/BCC");
       return;
     }
 
@@ -217,7 +328,6 @@ export default function MeetingManagement() {
         meetingLink: "",
         date: "",
         time: "",
-        participants: [],
         recipientName: "",
         to: [],
         cc: [],
@@ -251,14 +361,11 @@ export default function MeetingManagement() {
     });
   };
 
-  const roleColors: Record<string, string> = {
-    admin: "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400",
-    moderator:
-      "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400",
-    superuser:
-      "bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400",
-    user: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400",
-  };
+  const usedEmails = new Set(
+    [...(form.to || []), ...(form.cc || []), ...(form.bcc || [])].map((r) =>
+      r.email.toLowerCase(),
+    ),
+  );
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -465,134 +572,9 @@ export default function MeetingManagement() {
           </div>
 
           {/* ======================== */}
-          {/* PARTICIPANTS SECTION     */}
+          {/* RECIPIENT SECTIONS       */}
           {/* ======================== */}
-          <div className="space-y-4">
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              Participants *
-            </label>
-
-            {/* Internal: search by name */}
-            <div className="relative" ref={dropdownRef}>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
-                Add from portal users
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => {
-                    if (searchResults.length > 0) setShowDropdown(true);
-                  }}
-                  placeholder="Search by name or email..."
-                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#DD1D25]/50"
-                />
-                {searching && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-zinc-400" />
-                )}
-              </div>
-
-              {/* Dropdown */}
-              {showDropdown && searchResults.length > 0 && (
-                <div className="absolute z-20 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {searchResults.map((u) => (
-                    <button
-                      key={u._id}
-                      type="button"
-                      onClick={() => handleSelectUser(u)}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-sm"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-[#DD1D25] text-white flex items-center justify-center text-xs font-semibold shrink-0">
-                        {u.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                          {u.name}
-                        </p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
-                          {u.email}
-                        </p>
-                      </div>
-                      <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${roleColors[u.role] || roleColors.user}`}
-                      >
-                        {u.role}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {showDropdown &&
-                searchResults.length === 0 &&
-                debouncedSearch.length >= 2 &&
-                !searching && (
-                  <div className="absolute z-20 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg px-3 py-3 text-sm text-zinc-500">
-                    No users found
-                  </div>
-                )}
-            </div>
-
-            {/* External email input */}
-            <div>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
-                Add external email
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={externalEmail}
-                  onChange={(e) => {
-                    setExternalEmail(e.target.value);
-                    setExternalEmailError("");
-                  }}
-                  onKeyDown={handleExternalKeyDown}
-                  placeholder="external@example.com"
-                  className="flex-1 px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#DD1D25]/50"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddExternalEmail}
-                  className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg text-sm font-medium hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors"
-                >
-                  Add
-                </button>
-              </div>
-              {externalEmailError && (
-                <p className="text-xs text-red-500 mt-1">
-                  {externalEmailError}
-                </p>
-              )}
-            </div>
-
-            {/* Participant chips */}
-            {form.participants.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {form.participants.map((p) => (
-                  <span
-                    key={p.email}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
-                  >
-                    <Mail className="w-3 h-3" />
-                    {p.name ? `${p.name} <${p.email}>` : p.email}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveEmail(p.email)}
-                      className="ml-0.5 hover:text-red-500 transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* ======================== */}
-          {/* EMAIL HEADER OVERRIDES   */}
-          {/* ======================== */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                 Greeting name (optional)
@@ -613,66 +595,35 @@ export default function MeetingManagement() {
                 Shown in the email greeting; defaults to "all participants".
               </p>
             </div>
+            <RecipientSection
+              label="To"
+              field="to"
+              value={form.to}
+              onChange={(field, recipients) =>
+                setForm((prev) => ({ ...prev, [field]: recipients }))
+              }
+              usedEmails={usedEmails}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                To (comma-separated, optional)
-              </label>
-              <input
-                type="text"
-                value={form.to?.join(", ") || ""}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    to: parseEmails(e.target.value),
-                  }))
-                }
-                placeholder="sportsclub@sunway.edu.np"
-                className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#DD1D25]/50"
-              />
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                Leave empty to default to the club inbox.
-              </p>
-            </div>
+            <RecipientSection
+              label="CC"
+              field="cc"
+              value={form.cc}
+              onChange={(field, recipients) =>
+                setForm((prev) => ({ ...prev, [field]: recipients }))
+              }
+              usedEmails={usedEmails}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                CC (comma-separated, optional)
-              </label>
-              <input
-                type="text"
-                value={form.cc?.join(", ") || ""}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    cc: parseEmails(e.target.value),
-                  }))
-                }
-                placeholder="alice@example.com, bob@example.com"
-                className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#DD1D25]/50"
-              />
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                Defaults to all participants if left blank.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                BCC (comma-separated, optional)
-              </label>
-              <input
-                type="text"
-                value={form.bcc?.join(", ") || ""}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    bcc: parseEmails(e.target.value),
-                  }))
-                }
-                placeholder="hidden@example.com"
-                className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#DD1D25]/50"
-              />
-            </div>
+            <RecipientSection
+              label="BCC"
+              field="bcc"
+              value={form.bcc}
+              onChange={(field, recipients) =>
+                setForm((prev) => ({ ...prev, [field]: recipients }))
+              }
+              usedEmails={usedEmails}
+            />
           </div>
 
           {/* Submit */}
