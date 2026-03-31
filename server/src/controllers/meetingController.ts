@@ -1,6 +1,5 @@
 import type { Request, Response } from "express";
 import Meeting from "../models/Meeting.js";
-import User from "../models/User.js";
 import { sendMeetingInvitationEmail } from "../utils/emailHelper.js";
 
 export const createMeeting = async (req: Request, res: Response) => {
@@ -14,7 +13,11 @@ export const createMeeting = async (req: Request, res: Response) => {
       meetingLink,
       date,
       time,
-      participants, // array of emails
+      participants, // array of emails or { email, name }
+      recipientName, // optional greeting provided by frontend
+      to,
+      cc,
+      bcc,
     } = req.body;
 
     if (!title || !topic || !type || !date || !time) {
@@ -41,6 +44,19 @@ export const createMeeting = async (req: Request, res: Response) => {
         .json({ message: "At least one participant is required" });
     }
 
+    const participantObjects = (participants as any[]).map((p) =>
+      typeof p === "string" ? { email: p, name: undefined } : p,
+    );
+
+    const filteredParticipants = participantObjects.filter((p) => p?.email);
+    if (filteredParticipants.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "At least one participant email is required" });
+    }
+
+    const participantEmails = filteredParticipants.map((p) => p.email);
+
     const meeting = await Meeting.create({
       title,
       topic,
@@ -50,17 +66,8 @@ export const createMeeting = async (req: Request, res: Response) => {
       meetingLink,
       date,
       time,
-      participants,
+      participants: participantEmails,
       createdBy: req.user!._id,
-    });
-
-    // Resolve participant names from DB where possible
-    const users = await User.find({ email: { $in: participants } }).select(
-      "email name",
-    );
-    const nameMap: Record<string, string> = {};
-    users.forEach((u) => {
-      nameMap[u.email] = u.name;
     });
 
     // Determine location string
@@ -69,27 +76,25 @@ export const createMeeting = async (req: Request, res: Response) => {
         ? meetingLink
         : `${venue}${roomNo ? `, Room ${roomNo}` : ""}`;
 
-    // Send emails to all participants
-    for (const email of participants) {
-      const recipientName = nameMap[email] || email.split("@")[0];
-      try {
-        await sendMeetingInvitationEmail({
-          to: email,
-          recipientName,
-          title,
-          topic,
-          date,
-          time,
-          location: location || "",
-          meetingLink: type === "virtual" ? meetingLink : undefined,
-          type,
-          venue,
-          roomNo,
-          allParticipants: participants,
-        });
-      } catch (emailErr) {
-        console.error(`[Meeting] Failed to send email to ${email}:`, emailErr);
-      }
+    try {
+      await sendMeetingInvitationEmail({
+        recipientName: recipientName || undefined,
+        to,
+        cc,
+        bcc,
+        title,
+        topic,
+        date,
+        time,
+        location: location || "",
+        meetingLink: type === "virtual" ? meetingLink : undefined,
+        type,
+        venue,
+        roomNo,
+        allParticipants: filteredParticipants,
+      });
+    } catch (emailErr) {
+      console.error("[Meeting] Failed to send meeting invitation:", emailErr);
     }
 
     res.status(201).json(meeting);

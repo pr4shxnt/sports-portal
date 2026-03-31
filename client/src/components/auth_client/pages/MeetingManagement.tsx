@@ -19,6 +19,12 @@ import {
   Search,
 } from "lucide-react";
 
+const parseEmails = (value: string): string[] =>
+  value
+    .split(",")
+    .map((e) => e.trim())
+    .filter((e) => e.length > 0);
+
 // Debounce hook
 function useDebounce(value: string, delay: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -56,6 +62,10 @@ export default function MeetingManagement() {
     date: "",
     time: "",
     participants: [],
+    recipientName: "",
+    to: [],
+    cc: [],
+    bcc: [],
   });
 
   // Internal user search
@@ -90,7 +100,7 @@ export default function MeetingManagement() {
         );
         // Filter out already-added participants
         const filtered = res.data.filter(
-          (u) => !form.participants.includes(u.email),
+          (u) => !form.participants.some((p) => p.email === u.email),
         );
         setSearchResults(filtered);
         setShowDropdown(true);
@@ -131,10 +141,10 @@ export default function MeetingManagement() {
   };
 
   const handleSelectUser = (user: UserSearchResult) => {
-    if (!form.participants.includes(user.email)) {
+    if (!form.participants.some((p) => p.email === user.email)) {
       setForm((prev) => ({
         ...prev,
-        participants: [...prev.participants, user.email],
+        participants: [...prev.participants, { email: user.email, name: user.name }],
       }));
     }
     setSearchQuery("");
@@ -152,14 +162,14 @@ export default function MeetingManagement() {
       return;
     }
 
-    if (form.participants.includes(email)) {
+    if (form.participants.some((p) => p.email === email)) {
       setExternalEmailError("This email has already been added");
       return;
     }
 
     setForm((prev) => ({
       ...prev,
-      participants: [...prev.participants, email],
+      participants: [...prev.participants, { email }],
     }));
     setExternalEmail("");
     setExternalEmailError("");
@@ -175,7 +185,7 @@ export default function MeetingManagement() {
   const handleRemoveEmail = (email: string) => {
     setForm((prev) => ({
       ...prev,
-      participants: prev.participants.filter((e) => e !== email),
+      participants: prev.participants.filter((e) => e.email !== email),
     }));
   };
 
@@ -189,7 +199,13 @@ export default function MeetingManagement() {
 
     try {
       setCreating(true);
-      await meetingService.create(form);
+      await meetingService.create({
+        ...form,
+        to: form.to?.length ? form.to : undefined,
+        cc: form.cc?.length ? form.cc : undefined,
+        bcc: form.bcc?.length ? form.bcc : undefined,
+        recipientName: form.recipientName?.trim() || undefined,
+      });
       toast.success("Meeting created & invitations sent!");
       setShowForm(false);
       setForm({
@@ -202,6 +218,10 @@ export default function MeetingManagement() {
         date: "",
         time: "",
         participants: [],
+        recipientName: "",
+        to: [],
+        cc: [],
+        bcc: [],
       });
       fetchMeetings();
     } catch (err: any) {
@@ -549,16 +569,16 @@ export default function MeetingManagement() {
             {/* Participant chips */}
             {form.participants.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {form.participants.map((email) => (
+                {form.participants.map((p) => (
                   <span
-                    key={email}
+                    key={p.email}
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
                   >
                     <Mail className="w-3 h-3" />
-                    {email}
+                    {p.name ? `${p.name} <${p.email}>` : p.email}
                     <button
                       type="button"
-                      onClick={() => handleRemoveEmail(email)}
+                      onClick={() => handleRemoveEmail(p.email)}
                       className="ml-0.5 hover:text-red-500 transition-colors"
                     >
                       <X className="w-3 h-3" />
@@ -567,6 +587,92 @@ export default function MeetingManagement() {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* ======================== */}
+          {/* EMAIL HEADER OVERRIDES   */}
+          {/* ======================== */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                Greeting name (optional)
+              </label>
+              <input
+                type="text"
+                value={form.recipientName || ""}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    recipientName: e.target.value,
+                  }))
+                }
+                placeholder="e.g. Sports Committee"
+                className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#DD1D25]/50"
+              />
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                Shown in the email greeting; defaults to "all participants".
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                To (comma-separated, optional)
+              </label>
+              <input
+                type="text"
+                value={form.to?.join(", ") || ""}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    to: parseEmails(e.target.value),
+                  }))
+                }
+                placeholder="sportsclub@sunway.edu.np"
+                className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#DD1D25]/50"
+              />
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                Leave empty to default to the club inbox.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                CC (comma-separated, optional)
+              </label>
+              <input
+                type="text"
+                value={form.cc?.join(", ") || ""}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    cc: parseEmails(e.target.value),
+                  }))
+                }
+                placeholder="alice@example.com, bob@example.com"
+                className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#DD1D25]/50"
+              />
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                Defaults to all participants if left blank.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                BCC (comma-separated, optional)
+              </label>
+              <input
+                type="text"
+                value={form.bcc?.join(", ") || ""}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    bcc: parseEmails(e.target.value),
+                  }))
+                }
+                placeholder="hidden@example.com"
+                className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#DD1D25]/50"
+              />
+            </div>
           </div>
 
           {/* Submit */}
