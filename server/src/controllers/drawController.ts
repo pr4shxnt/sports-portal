@@ -2,6 +2,91 @@ import { Request, Response } from "express";
 import Draw from "../models/Draw.js";
 import Event from "../models/Event.js";
 
+type SeedTeam = {
+  teamId: string;
+  groupName?: string;
+};
+
+const shuffleArray = <T,>(items: T[]) => {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
+const buildGroupMapFromDraw = (groupDraw: any) => {
+  const groupMap = new Map<string, string>();
+
+  (groupDraw?.groupings || []).forEach((group: any) => {
+    (group.teams || []).forEach((team: any) => {
+      const teamId = typeof team === "string" ? team : team?._id?.toString?.() || team?.id;
+      if (teamId) {
+        groupMap.set(teamId.toString(), group.name);
+      }
+    });
+  });
+
+  return groupMap;
+};
+
+const buildKnockoutOrder = (
+  drawnTeams: string[],
+  groupMap: Map<string, string>,
+) => {
+  const entries: SeedTeam[] = drawnTeams.map((teamId) => ({
+    teamId: teamId.toString(),
+    groupName: groupMap.get(teamId.toString()),
+  }));
+
+  if (entries.length <= 2 || groupMap.size === 0) {
+    return shuffleArray(entries).map((entry) => entry.teamId);
+  }
+
+  const firstRoundPairings: [SeedTeam, SeedTeam][] = [];
+  const used = new Set<string>();
+
+  const backtrack = (remaining: SeedTeam[]): boolean => {
+    if (remaining.length === 0) return true;
+
+    const [first, ...rest] = shuffleArray(remaining);
+    const candidates = shuffleArray(
+      rest.filter((candidate) => candidate.groupName !== first.groupName),
+    );
+
+    for (const candidate of candidates) {
+      const nextRemaining = rest.filter(
+        (item) => item.teamId !== candidate.teamId,
+      );
+
+      if (used.has(first.teamId) || used.has(candidate.teamId)) {
+        continue;
+      }
+
+      used.add(first.teamId);
+      used.add(candidate.teamId);
+      firstRoundPairings.push([first, candidate]);
+
+      if (backtrack(nextRemaining)) return true;
+
+      firstRoundPairings.pop();
+      used.delete(first.teamId);
+      used.delete(candidate.teamId);
+    }
+
+    return false;
+  };
+
+  const success = backtrack(entries);
+
+  if (!success) {
+    throw new Error("Unable to generate knockout order without same-group rematches.");
+  }
+
+  return firstRoundPairings.flatMap(([a, b]) => [a.teamId, b.teamId]);
+};
+
 // @desc    Create a new draw
 // @route   POST /api/draws
 // @access  Private (Admin)
@@ -15,12 +100,37 @@ export const createDraw = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Event not found" });
     }
 
+    let finalDrawnTeams = drawnTeams;
+
+    if (format === "Knockout" && Array.isArray(drawnTeams) && drawnTeams.length > 1) {
+      const latestGroupDraw = await Draw.findOne({
+        event,
+        format: "Group",
+        sport,
+      })
+        .sort({ createdAt: -1 })
+        .select("groupings");
+
+      const groupMap = buildGroupMapFromDraw(latestGroupDraw);
+
+      try {
+        finalDrawnTeams = buildKnockoutOrder(drawnTeams, groupMap);
+      } catch (error) {
+        return res.status(400).json({
+          message:
+            error instanceof Error
+              ? error.message
+              : "Unable to generate knockout order",
+        });
+      }
+    }
+
     const draw = await Draw.create({
       event,
       format,
       sport,
       teamSize,
-      drawnTeams,
+      drawnTeams: finalDrawnTeams,
       groupings: groupings || [],
       createdBy: req.user?._id,
     });

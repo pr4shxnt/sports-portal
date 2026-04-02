@@ -153,8 +153,23 @@ const EventDetails = () => {
 
     setIsGeneratingPlayoffs(true);
     try {
-      const qualifiedTeams: { teamId: string; groupName: string; rank: number }[] = [];
+      type QualifiedTeam = {
+        teamId: string;
+        groupName: string;
+        rank: number;
+      };
+
+      const qualifiedTeams: QualifiedTeam[] = [];
       const groupings = draw.groupings || [];
+
+      const shuffle = <T,>(items: T[]) => {
+        const arr = [...items];
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      };
 
       const groupMatchId = (gName: string, t1: any, t2: any) => {
         const ids = [t1._id, t2._id].sort();
@@ -224,36 +239,61 @@ const EventDetails = () => {
         return;
       }
 
-      const groupedByPlacement = qualifiedTeams.reduce(
-        (acc, item) => {
-          acc[item.rank - 1].push(item);
-          return acc;
-        },
-        [[], []] as { teamId: string; groupName: string; rank: number }[][],
-      );
+      const firstSeeds = shuffle(qualifiedTeams.filter((team) => team.rank === 1));
+      const secondSeeds = shuffle(qualifiedTeams.filter((team) => team.rank === 2));
 
       const buildKnockoutSeedOrder = () => {
-        const seeds: string[] = [];
-        const used = new Set<string>();
-        const maxRows = Math.max(
-          groupedByPlacement[0]?.length || 0,
-          groupedByPlacement[1]?.length || 0,
-        );
+        const usedSecondTeams = new Set<string>();
+        const pairings: [QualifiedTeam, QualifiedTeam][] = [];
 
-        for (let row = 0; row < maxRows; row++) {
-          for (let placement = 0; placement < groupedByPlacement.length; placement++) {
-            const candidate = groupedByPlacement[placement][row];
-            if (!candidate) continue;
-            if (used.has(candidate.teamId)) continue;
-            seeds.push(candidate.teamId);
-            used.add(candidate.teamId);
+        const backtrack = (index: number): boolean => {
+          if (index >= firstSeeds.length) return true;
+
+          const first = firstSeeds[index];
+          const candidates = shuffle(
+            secondSeeds.filter(
+              (second) =>
+                !usedSecondTeams.has(second.teamId) &&
+                second.groupName !== first.groupName,
+            ),
+          );
+
+          for (const second of candidates) {
+            usedSecondTeams.add(second.teamId);
+            pairings.push([first, second]);
+
+            if (backtrack(index + 1)) return true;
+
+            pairings.pop();
+            usedSecondTeams.delete(second.teamId);
           }
+
+          return false;
+        };
+
+        if (!backtrack(0)) {
+          throw new Error(
+            "Unable to generate playoff pairings without same-group rematches.",
+          );
         }
 
-        return seeds;
+        return shuffle(pairings).flatMap(([first, second]) => [
+          first.teamId,
+          second.teamId,
+        ]);
       };
 
-      const knockoutTeams = buildKnockoutSeedOrder();
+      let knockoutTeams: string[];
+
+      try {
+        knockoutTeams = buildKnockoutSeedOrder();
+      } catch (pairingError) {
+        console.error("Error generating playoff pairings:", pairingError);
+        toast.error(
+          "Could not generate playoffs without same-group rematches. Please try again.",
+        );
+        return;
+      }
 
       if (knockoutTeams.length < 2) {
         toast.error("Not enough teams to form playoffs.");
