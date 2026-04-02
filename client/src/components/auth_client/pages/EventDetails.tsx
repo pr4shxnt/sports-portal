@@ -153,7 +153,7 @@ const EventDetails = () => {
 
     setIsGeneratingPlayoffs(true);
     try {
-      const topTeams: string[] = [];
+      const qualifiedTeams: { teamId: string; groupName: string; rank: number }[] = [];
       const groupings = draw.groupings || [];
 
       const groupMatchId = (gName: string, t1: any, t2: any) => {
@@ -203,11 +203,59 @@ const EventDetails = () => {
             b.Pts !== a.Pts ? b.Pts - a.Pts : b.Diff - a.Diff,
           );
 
-        if (standings.length > 0) topTeams.push(standings[0].team._id);
-        if (standings.length > 1) topTeams.push(standings[1].team._id);
+        if (standings.length > 0) {
+          qualifiedTeams.push({
+            teamId: standings[0].team._id,
+            groupName: group.name,
+            rank: 1,
+          });
+        }
+        if (standings.length > 1) {
+          qualifiedTeams.push({
+            teamId: standings[1].team._id,
+            groupName: group.name,
+            rank: 2,
+          });
+        }
       });
 
-      if (topTeams.length < 2) {
+      if (qualifiedTeams.length < 2) {
+        toast.error("Not enough teams to form playoffs.");
+        return;
+      }
+
+      const groupedByPlacement = qualifiedTeams.reduce(
+        (acc, item) => {
+          acc[item.rank - 1].push(item);
+          return acc;
+        },
+        [[], []] as { teamId: string; groupName: string; rank: number }[][],
+      );
+
+      const buildKnockoutSeedOrder = () => {
+        const seeds: string[] = [];
+        const used = new Set<string>();
+        const maxRows = Math.max(
+          groupedByPlacement[0]?.length || 0,
+          groupedByPlacement[1]?.length || 0,
+        );
+
+        for (let row = 0; row < maxRows; row++) {
+          for (let placement = 0; placement < groupedByPlacement.length; placement++) {
+            const candidate = groupedByPlacement[placement][row];
+            if (!candidate) continue;
+            if (used.has(candidate.teamId)) continue;
+            seeds.push(candidate.teamId);
+            used.add(candidate.teamId);
+          }
+        }
+
+        return seeds;
+      };
+
+      const knockoutTeams = buildKnockoutSeedOrder();
+
+      if (knockoutTeams.length < 2) {
         toast.error("Not enough teams to form playoffs.");
         return;
       }
@@ -218,7 +266,7 @@ const EventDetails = () => {
         title: "Playoffs",
         sport: draw.sport,
         teamSize: draw.teamSize,
-        drawnTeams: topTeams,
+        drawnTeams: knockoutTeams,
       });
 
       toast.success("Playoffs generated successfully!");
