@@ -810,16 +810,28 @@ const EventDetails = () => {
                             currSize /= 2;
                           }
 
-                          // Helper to get winner of a match
+                          // Helper to get winner of a match (or BYE automatic advancement)
                           const getWinner = (
                             roundSize: number,
                             matchIdx: number,
-                          ) => {
+                          ): any => {
                             const matchId = `r${roundSize}m${matchIdx}`;
                             const winnerId = draw.matchResults?.[matchId];
-                            return (
-                              teams.find((t) => t._id === winnerId) || null
-                            );
+                            if (winnerId) {
+                              return teams.find((t) => t._id === winnerId) || null;
+                            }
+                            
+                            // Check if this was a BYE match (only one team, no opponent)
+                            // A team got a bye if: previous round had team1 but no team2
+                            if (roundSize > 1) {
+                              const prevTeam1 = getTeam(roundSize * 2, matchIdx * 2, 0);
+                              const prevTeam2 = getTeam(roundSize * 2, matchIdx * 2, 1);
+                              if (prevTeam1 && !prevTeam2) {
+                                return prevTeam1; // Team got bye, automatically advances
+                              }
+                            }
+                            
+                            return null;
                           };
 
                           // Helper to get team in a specific slot
@@ -827,7 +839,7 @@ const EventDetails = () => {
                             roundSize: number,
                             matchIdx: number,
                             slotIdx: number,
-                          ) => {
+                          ): any => {
                             if (roundSize === p) {
                               // Initial round: some teams get byes if n < p
                               // Standard distribution: first (p-n) teams get byes?
@@ -910,21 +922,35 @@ const EventDetails = () => {
                                       matchIdx,
                                       1,
                                     );
-                                    const winner = getWinner(
-                                      roundSize,
-                                      matchIdx,
-                                    );
                                     const matchId = `r${roundSize}m${matchIdx}`;
 
-                                    // Handle BYE progression automatically if not set
-                                    if (
-                                      roundSize === p &&
-                                      team1 &&
-                                      !team2 &&
-                                      !winner
-                                    ) {
-                                      // Auto-set winner for BYE matches in background or return winner contextually
-                                      // For now, let's just make it clickable or automated
+                                    // Handle BYE: If only one team and no opponent, team automatically advances
+                                    const isByeMatch = team1 && !team2;
+
+                                    // BYE match - no opponent, team automatically advances
+                                    if (isByeMatch) {
+                                      return (
+                                        <div
+                                          key={matchIdx}
+                                          className="relative flex flex-col gap-3 w-full"
+                                          title="Bye - Team automatically advances to next round"
+                                        >
+                                          <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border-2 border-dashed border-[#DD1D25]/40 bg-[#DD1D25]/5 dark:bg-[#DD1D25]/10">
+                                            <span className="text-sm font-bold text-[#DD1D25] dark:text-[#FF4444]">
+                                              {team1.name}
+                                            </span>
+                                            <span className="text-xs font-mono text-[#DD1D25]/60 dark:text-[#FF4444]/60">
+                                              BYE
+                                            </span>
+                                          </div>
+                                          {roundSize > 2 && (
+                                            <div className="absolute -right-6 top-1/2 -translate-y-1/2 w-6 h-[60%] border-y border-r border-[#DD1D25]/30 rounded-r-xl"></div>
+                                          )}
+                                          {roundSize === 2 && (
+                                            <div className="absolute -right-6 top-1/2 -translate-y-1/2 w-6 h-px bg-[#DD1D25]/30"></div>
+                                          )}
+                                        </div>
+                                      );
                                     }
 
                                     return (
@@ -973,7 +999,7 @@ const EventDetails = () => {
                                             return (
                                               <div
                                                 key={i}
-                                                className={`relative flex items-center p-3 rounded-xl border transition-all truncate text-left w-full h-[52px] ${
+                                                className={`relative flex items-center p-3 rounded-xl border transition-all truncate text-left w-full h-13 ${
                                                   isWinner
                                                     ? "bg-[#DD1D25] border-[#DD1D25] text-white shadow-lg shadow-[#DD1D25]/20 z-10"
                                                     : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200"
@@ -1062,9 +1088,9 @@ const EventDetails = () => {
                             </span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <div className="w-3 h-3 rounded border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30"></div>
+                            <div className="w-3 h-3 rounded border border-dashed border-[#DD1D25]/40 bg-[#DD1D25]/5 dark:bg-[#DD1D25]/10"></div>
                             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-                              To be determined
+                              Bye (Auto advance)
                             </span>
                           </div>
                         </div>
