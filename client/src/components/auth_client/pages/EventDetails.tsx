@@ -822,12 +822,13 @@ const EventDetails = () => {
                             }
                             
                             // Check if this was a BYE match (only one team, no opponent)
-                            // A team got a bye if: previous round had team1 but no team2
-                            if (roundSize > 1) {
-                              const prevTeam1 = getTeam(roundSize * 2, matchIdx * 2, 0);
-                              const prevTeam2 = getTeam(roundSize * 2, matchIdx * 2, 1);
-                              if (prevTeam1 && !prevTeam2) {
-                                return prevTeam1; // Team got bye, automatically advances
+                            // Only check in the initial round to avoid infinite recursion
+                            if (roundSize === p) {
+                              const teamIdx = matchIdx * 2;
+                              const team1 = teams[teamIdx] || null;
+                              const team2 = teams[teamIdx + 1] || null;
+                              if (team1 && !team2) {
+                                return team1; // Team got bye, automatically advances
                               }
                             }
                             
