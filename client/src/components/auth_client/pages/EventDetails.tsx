@@ -820,18 +820,13 @@ const EventDetails = () => {
                             if (winnerId) {
                               return teams.find((t) => t._id === winnerId) || null;
                             }
-                            
-                            // Check if this was a BYE match (only one team, no opponent)
-                            // Only check in the initial round to avoid infinite recursion
-                            if (roundSize === p) {
-                              const teamIdx = matchIdx * 2;
-                              const team1 = teams[teamIdx] || null;
-                              const team2 = teams[teamIdx + 1] || null;
-                              if (team1 && !team2) {
-                                return team1; // Team got bye, automatically advances
-                              }
-                            }
-                            
+
+                            const team1 = getTeam(roundSize, matchIdx, 0);
+                            const team2 = getTeam(roundSize, matchIdx, 1);
+
+                            if (team1 && !team2) return team1;
+                            if (!team1 && team2) return team2;
+
                             return null;
                           };
 
@@ -925,31 +920,14 @@ const EventDetails = () => {
                                     );
                                     const matchId = `r${roundSize}m${matchIdx}`;
 
-                                    // Handle BYE: If only one team and no opponent, team automatically advances
-                                    const isByeMatch = team1 && !team2;
-
-                                    // No opponent match - team automatically advances to next round
-                                    if (isByeMatch) {
-                                      return (
-                                        <div
-                                          key={matchIdx}
-                                          className="relative flex flex-col gap-3 w-full"
-                                          title="Team automatically advances to next round"
-                                        >
-                                          <div className="flex items-center justify-center py-2 px-3 rounded-xl border-2 border-[#DD1D25] bg-[#DD1D25] text-white shadow-lg shadow-[#DD1D25]/20">
-                                            <span className="text-sm font-bold">
-                                              {team1.name}
-                                            </span>
-                                          </div>
-                                          {roundSize > 2 && (
-                                            <div className="absolute -right-6 top-1/2 -translate-y-1/2 w-6 h-[60%] border-y border-r border-[#DD1D25] rounded-r-xl"></div>
-                                          )}
-                                          {roundSize === 2 && (
-                                            <div className="absolute -right-6 top-1/2 -translate-y-1/2 w-6 h-px bg-[#DD1D25]"></div>
-                                          )}
-                                        </div>
-                                      );
-                                    }
+                                    const winner = getWinner(
+                                      roundSize,
+                                      matchIdx,
+                                    );
+                                    const isAutoPromoted =
+                                      !!winner &&
+                                      !draw.matchResults?.[matchId] &&
+                                      ((team1 && !team2) || (!team1 && team2));
 
                                     return (
                                       <div
@@ -989,10 +967,8 @@ const EventDetails = () => {
                                       >
                                         <div className="flex flex-col gap-1.5">
                                           {[team1, team2].map((t, i) => {
-                                            const matchResult =
-                                              draw.matchResults?.[matchId];
                                             const isWinner =
-                                              t && matchResult === t._id;
+                                              t && winner && winner._id === t._id;
 
                                             return (
                                               <div
@@ -1014,7 +990,11 @@ const EventDetails = () => {
                                                   <span
                                                     className={`block truncate ${isWinner ? "font-black" : "font-medium opacity-60"}`}
                                                   >
-                                                    {t ? t.name : "TBD Slot"}
+                                                    {t
+                                                      ? t.name
+                                                      : isAutoPromoted
+                                                        ? "No Opponent"
+                                                        : "TBD Slot"}
                                                   </span>
                                                 </div>
                                                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col items-end gap-1">
