@@ -928,27 +928,24 @@ const EventDetails = () => {
                                     // Handle BYE: If only one team and no opponent, team automatically advances
                                     const isByeMatch = team1 && !team2;
 
-                                    // BYE match - no opponent, team automatically advances
+                                    // No opponent match - team automatically advances to next round
                                     if (isByeMatch) {
                                       return (
                                         <div
                                           key={matchIdx}
                                           className="relative flex flex-col gap-3 w-full"
-                                          title="Bye - Team automatically advances to next round"
+                                          title="Team automatically advances to next round"
                                         >
-                                          <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border-2 border-dashed border-[#DD1D25]/40 bg-[#DD1D25]/5 dark:bg-[#DD1D25]/10">
-                                            <span className="text-sm font-bold text-[#DD1D25] dark:text-[#FF4444]">
+                                          <div className="flex items-center justify-center py-2 px-3 rounded-xl border-2 border-[#DD1D25] bg-[#DD1D25] text-white shadow-lg shadow-[#DD1D25]/20">
+                                            <span className="text-sm font-bold">
                                               {team1.name}
-                                            </span>
-                                            <span className="text-xs font-mono text-[#DD1D25]/60 dark:text-[#FF4444]/60">
-                                              BYE
                                             </span>
                                           </div>
                                           {roundSize > 2 && (
-                                            <div className="absolute -right-6 top-1/2 -translate-y-1/2 w-6 h-[60%] border-y border-r border-[#DD1D25]/30 rounded-r-xl"></div>
+                                            <div className="absolute -right-6 top-1/2 -translate-y-1/2 w-6 h-[60%] border-y border-r border-[#DD1D25] rounded-r-xl"></div>
                                           )}
                                           {roundSize === 2 && (
-                                            <div className="absolute -right-6 top-1/2 -translate-y-1/2 w-6 h-px bg-[#DD1D25]/30"></div>
+                                            <div className="absolute -right-6 top-1/2 -translate-y-1/2 w-6 h-px bg-[#DD1D25]"></div>
                                           )}
                                         </div>
                                       );
@@ -1086,12 +1083,6 @@ const EventDetails = () => {
                             <div className="w-3 h-3 rounded border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"></div>
                             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
                               Pending Match
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="w-3 h-3 rounded border border-dashed border-[#DD1D25]/40 bg-[#DD1D25]/5 dark:bg-[#DD1D25]/10"></div>
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-                              Bye (Auto advance)
                             </span>
                           </div>
                         </div>
