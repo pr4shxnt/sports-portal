@@ -7,6 +7,7 @@ import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { TeamsPdfTemplate } from "./DrawPdfTemplate";
 import { toast } from "react-hot-toast";
+import { useAppSelector } from "../../../store/hooks";
 
 interface TeamMember {
   _id?: string;
@@ -31,6 +32,9 @@ interface Team {
 }
 
 const AllTeams = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  const canDrawTeams = user?.role === "admin";
+
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -337,6 +341,17 @@ const AllTeams = () => {
                   </span>
                 </div>
                 {(() => {
+                  if (!canDrawTeams) {
+                    return (
+                      <button
+                        disabled
+                        className="px-3 py-1 bg-zinc-300 dark:bg-zinc-700 text-zinc-500 text-[10px] font-bold uppercase tracking-wider rounded-md cursor-not-allowed shadow-none"
+                      >
+                        Draw Restricted
+                      </button>
+                    );
+                  }
+
                   const matchingEventForDraw = events.find(
                     (e) =>
                       e.slug === sport.toLowerCase() ||
@@ -620,7 +635,7 @@ const AllTeams = () => {
       </Modal>
 
       <DrawTeamsModal
-        isOpen={isDrawModalOpen}
+        isOpen={canDrawTeams && isDrawModalOpen}
         onClose={() => {
           setIsDrawModalOpen(false);
           setPreSelectedSport("");
