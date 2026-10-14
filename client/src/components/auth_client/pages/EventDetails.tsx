@@ -2,15 +2,19 @@ import React, {
   lazy,
   Suspense,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import api from "../../../services/api";
 import { useAppSelector } from "../../../store/hooks";
+import {
+  useGetEventDrawsQuery,
+  useGetEventQuery,
+  useUpdateEventMutation,
+} from "../../../store/api";
+import { EventDetailsSkeleton } from "../../ui/Skeleton";
 import MatchScoreModal from "./MatchScoreModal";
 import TableStage from "../tournament/TableStage";
 import KnockoutBracket from "../tournament/KnockoutBracket";
@@ -26,22 +30,6 @@ import {
 // Only admins in edit mode need the date picker; load it on demand.
 const DatePicker = lazy(() => import("../../ui/DateTimePicker"));
 
-interface Event {
-  _id: string;
-  title: string;
-  description: string;
-  date: string;
-  endDate?: string;
-  location: string;
-  slug?: string;
-  organizer: string;
-  form?: {
-    _id: string;
-    isActive: boolean;
-    formId: string;
-  };
-}
-
 type PdfTemplate = typeof import("./DrawPdfTemplate").DrawPdfTemplate;
 
 const toInputDate = (value?: string) =>
@@ -51,10 +39,16 @@ const EventDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
-  const [event, setEvent] = useState<Event | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [draws, setDraws] = useState<Draw[]>([]);
+  const eventQuery = useGetEventQuery(id!, { skip: !id });
+  const drawsQuery = useGetEventDrawsQuery(id!, { skip: !id });
+  const [updateEvent] = useUpdateEventMutation();
+  const event = eventQuery.data;
+  const draws = useMemo(() => drawsQuery.data ?? [], [drawsQuery.data]);
+  const loading = eventQuery.isLoading || drawsQuery.isLoading;
+  const formError =
+    eventQuery.isError || drawsQuery.isError
+      ? "Failed to load event details"
+      : null;
 
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
@@ -85,46 +79,10 @@ const EventDetails = () => {
   const isAdmin = user?.role === "admin";
   const hasStarted = !!event && new Date() >= new Date(event.date);
 
-  const refreshDraws = useCallback(async () => {
-    const res = await api.get<Draw[]>(`/draws/event/${id}`);
-    setDraws(res.data);
-  }, [id]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [eventRes, drawsRes] = await Promise.all([
-          api.get(`/events/${id}`),
-          api.get<Draw[]>(`/draws/event/${id}`),
-        ]);
-
-        const data = eventRes.data;
-        setEvent(data);
-        setDraws(drawsRes.data);
-        setEditFormData({
-          title: data.title,
-          description: data.description,
-          date: toInputDate(data.date),
-          endDate: toInputDate(data.endDate),
-          location: data.location,
-        });
-      } catch (err) {
-        console.error("Error fetching event details:", err);
-        setFormError("Failed to load event details");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (id) fetchData();
-  }, [id]);
-
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.put(`/events/${id}`, editFormData);
-      setEvent((prev) => (prev ? { ...prev, ...editFormData } : null));
+      await updateEvent({ id: id!, data: editFormData }).unwrap();
       setIsEditing(false);
       toast.success("Event updated");
     } catch (err) {
@@ -186,8 +144,7 @@ const EventDetails = () => {
     }
   };
 
-  if (loading)
-    return <div className="p-6 text-center text-zinc-500">Loading...</div>;
+  if (loading) return <EventDetailsSkeleton />;
   if (formError || !event)
     return (
       <div className="p-6 text-center text-red-500">
@@ -213,7 +170,19 @@ const EventDetails = () => {
         </button>
         {isAdmin && (
           <button
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={() => {
+              // Seed the form from the latest cached event each time.
+              if (!isEditing && event) {
+                setEditFormData({
+                  title: event.title,
+                  description: event.description,
+                  date: toInputDate(event.date),
+                  endDate: toInputDate(event.endDate),
+                  location: event.location,
+                });
+              }
+              setIsEditing(!isEditing);
+            }}
             className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-md text-sm font-medium hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
           >
             {isEditing ? "Cancel Edit" : "Edit Event"}
@@ -516,11 +485,6 @@ const EventDetails = () => {
             selectedDraw?.matchScores?.[selectedMatch.fixture.id] || ""
           }
           allowDraw={selectedMatch.allowDraw}
-          onUpdate={(newDraw) =>
-            setDraws((prev) =>
-              prev.map((d) => (d._id === newDraw._id ? newDraw : d)),
-            )
-          }
         />
       )}
 
@@ -530,8 +494,8 @@ const EventDetails = () => {
           draw={advancingDraw}
           onClose={() => setAdvancingDraw(null)}
           onAdvanced={async (next) => {
-            // The source draw's qualification zone changed too; refetch all.
-            await refreshDraws();
+            // RTK Query refetches this event's phases; wait, then scroll.
+            await drawsQuery.refetch();
             requestAnimationFrame(() =>
               document
                 .getElementById(`draw-${next._id}`)

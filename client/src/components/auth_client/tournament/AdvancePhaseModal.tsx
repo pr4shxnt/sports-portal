@@ -1,7 +1,11 @@
 import { useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import Modal from "../../ui/Modal";
-import api from "../../../services/api";
+import {
+  errorMessage,
+  useAdvanceDrawMutation,
+  type AdvanceDrawBody,
+} from "../../../store/api";
 import {
   balancedSizes,
   computeStandings,
@@ -185,7 +189,7 @@ const AdvancePhaseModal = ({
     Math.min(qualifierCount(draw) || 2, smallestGroup || 1),
   );
   const [bestPlaced, setBestPlaced] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
+  const [advanceDraw, { isLoading: submitting }] = useAdvanceDrawMutation();
 
   /* ── League previews ── */
   const maxGroupSize = Math.max(2, Math.floor(qualifiers / 2));
@@ -285,7 +289,7 @@ const AdvancePhaseModal = ({
       : knockoutTeams >= 2);
 
   const submit = async () => {
-    const body = isLeague
+    const body: AdvanceDrawBody = isLeague
       ? mode === "groups"
         ? { mode, qualifiers, groupSize: size }
         : { mode, qualifiers, seeding }
@@ -301,17 +305,13 @@ const AdvancePhaseModal = ({
     )
       return;
 
-    setSubmitting(true);
     try {
-      const res = await api.post(`/draws/${draw._id}/advance`, body);
-      toast.success(`${res.data.stage || "Next phase"} drawn!`);
-      onAdvanced(res.data);
+      const next = await advanceDraw({ id: draw._id, body }).unwrap();
+      toast.success(`${next.stage || "Next phase"} drawn!`);
+      onAdvanced(next);
       onClose();
     } catch (err) {
-      const message = (err as { response?: { data?: { message?: string } } })
-        ?.response?.data?.message;
-      toast.error(message || "Failed to draw the next phase");
-      setSubmitting(false);
+      toast.error(errorMessage(err, "Failed to draw the next phase"));
     }
   };
 

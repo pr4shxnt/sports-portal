@@ -4,7 +4,7 @@ import { useAppSelector } from "../../../store/hooks";
 import type { Equipment, Responsibility } from "../../../types";
 import { RequestStatus } from "../../../types";
 import { toast } from "react-hot-toast";
-import LoadingSpinner from "../../ui/LoadingSpinner";
+import { CardGridSkeleton, HeaderSkeleton } from "../../ui/Skeleton";
 
 const RequestEquipments = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -160,7 +160,13 @@ const RequestEquipments = () => {
     });
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading)
+    return (
+      <div className="p-6 space-y-6">
+        <HeaderSkeleton action={false} />
+        <CardGridSkeleton label="Loading equipment" />
+      </div>
+    );
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">

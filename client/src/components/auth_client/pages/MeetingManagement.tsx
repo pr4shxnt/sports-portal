@@ -18,6 +18,7 @@ import {
   Loader2,
   Search,
 } from "lucide-react";
+import { ListSkeleton } from "../../ui/Skeleton";
 
 // Debounce hook
 function useDebounce(value: string, delay: number) {
@@ -42,11 +43,20 @@ interface RecipientSectionProps {
   label: string;
   field: RecipientField;
   value: MeetingCreate[RecipientField];
-  onChange: (field: RecipientField, recipients: MeetingCreate[RecipientField]) => void;
+  onChange: (
+    field: RecipientField,
+    recipients: MeetingCreate[RecipientField],
+  ) => void;
   usedEmails: Set<string>;
 }
 
-function RecipientSection({ label, field, value, onChange, usedEmails }: RecipientSectionProps) {
+function RecipientSection({
+  label,
+  field,
+  value,
+  onChange,
+  usedEmails,
+}: RecipientSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -101,7 +111,10 @@ function RecipientSection({ label, field, value, onChange, usedEmails }: Recipie
 
   const handleSelectUser = (user: UserSearchResult) => {
     if (!usedEmails.has(user.email.toLowerCase())) {
-      onChange(field, [...(value || []), { email: user.email, name: user.name }]);
+      onChange(field, [
+        ...(value || []),
+        { email: user.email, name: user.name },
+      ]);
     }
     setSearchQuery("");
     setSearchResults([]);
@@ -138,7 +151,9 @@ function RecipientSection({ label, field, value, onChange, usedEmails }: Recipie
   const handleRemove = (email: string) => {
     onChange(
       field,
-      (value || []).filter((r) => r.email.toLowerCase() !== email.toLowerCase()),
+      (value || []).filter(
+        (r) => r.email.toLowerCase() !== email.toLowerCase(),
+      ),
     );
   };
 
@@ -646,9 +661,7 @@ export default function MeetingManagement() {
 
       {/* Meeting List */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-        </div>
+        <ListSkeleton rows={4} label="Loading meetings" />
       ) : meetings.length === 0 ? (
         <div className="text-center py-20">
           <CalendarDays className="w-12 h-12 text-zinc-300 dark:text-zinc-700 mx-auto mb-3" />
