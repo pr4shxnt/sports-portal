@@ -3,7 +3,7 @@ import Modal from "../../ui/Modal";
 import DrawTeamsModal from "./DrawTeamsModal";
 import { HeaderSkeleton, TeamSectionsSkeleton } from "../../ui/Skeleton";
 import {
-  useGetDrawsQuery,
+  useGetDrawSummariesQuery,
   useGetEventsQuery,
   useGetTeamsQuery,
   refId,
@@ -23,7 +23,8 @@ const AllTeams = () => {
   // "View Draw" appears without a manual refresh.
   const teamsQuery = useGetTeamsQuery();
   const eventsQuery = useGetEventsQuery();
-  const drawsQuery = useGetDrawsQuery();
+  // Summaries only: we just need to know which sport/event has a draw.
+  const drawsQuery = useGetDrawSummariesQuery();
   const teams = teamsQuery.data ?? [];
   const events = eventsQuery.data ?? [];
   const draws = drawsQuery.data ?? [];

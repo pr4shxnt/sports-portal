@@ -85,6 +85,32 @@ export type DrawWithEvent = Omit<Draw, "event"> & {
   event?: string | { _id: string; title: string; date: string };
 };
 
+/** Lightweight draw row from GET /draws?view=summary (no teams). */
+export interface DrawSummary {
+  _id: string;
+  sport: string;
+  format: Draw["format"];
+  stage?: string;
+  parentDraw?: string;
+  createdAt: string;
+  event?: string | { _id: string; title: string; date: string } | null;
+}
+
+export type RequestWindowMode = "scheduled" | "open" | "closed";
+
+export interface RequestWindow {
+  mode: RequestWindowMode;
+  openHour: number;
+  closeHour: number;
+  note: string;
+  timezone: string;
+  isOpen: boolean;
+  /** Why requests are refused right now, or null when open. */
+  message: string | null;
+  updatedAt: string | null;
+  updatedBy: { _id: string; name: string; role: string } | null;
+}
+
 export type EventUpdate = Pick<
   EventDetail,
   "title" | "description" | "date" | "endDate" | "location"
@@ -117,7 +143,7 @@ const drawTags = (draw: { _id: string }) => [
 export const sportsApi = createApi({
   reducerPath: "sportsApi",
   baseQuery: axiosBaseQuery,
-  tagTypes: ["Event", "Team", "Draw"],
+  tagTypes: ["Event", "Team", "Draw", "RequestWindow"],
   // Refetch stale data when the tab regains focus or the network returns.
   refetchOnFocus: true,
   refetchOnReconnect: true,
@@ -161,7 +187,46 @@ export const sportsApi = createApi({
       providesTags: [{ type: "Team", id: "MINE" }],
     }),
 
+    /* ── Equipment request window ── */
+    getRequestWindow: build.query<RequestWindow, void>({
+      query: () => ({ url: "/equipment/request-window" }),
+      providesTags: ["RequestWindow"],
+    }),
+    updateRequestWindow: build.mutation<
+      RequestWindow,
+      Partial<Pick<RequestWindow, "mode" | "openHour" | "closeHour" | "note">>
+    >({
+      query: (data) => ({
+        url: "/equipment/request-window",
+        method: "PUT",
+        data,
+      }),
+      // The response is the new state: write it straight into the cache.
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            sportsApi.util.updateQueryData(
+              "getRequestWindow",
+              undefined,
+              () => data,
+            ),
+          );
+        } catch {
+          /* handled by the caller */
+        }
+      },
+    }),
+
     /* ── Draws ── */
+    /** Which sport/event pairs have draws — no teams, much smaller. */
+    getDrawSummaries: build.query<DrawSummary[], void>({
+      query: () => ({ url: "/draws", params: { view: "summary" } }),
+      providesTags: (draws = []) => [
+        { type: "Draw", id: "LIST" },
+        ...draws.flatMap(drawTags),
+      ],
+    }),
     getDraws: build.query<DrawWithEvent[], void>({
       query: () => ({ url: "/draws" }),
       providesTags: (draws = []) => [
@@ -267,6 +332,9 @@ export const {
   useGetTeamsQuery,
   useGetMyTeamsQuery,
   useGetDrawsQuery,
+  useGetDrawSummariesQuery,
+  useGetRequestWindowQuery,
+  useUpdateRequestWindowMutation,
   useGetEventDrawsQuery,
   useCreateDrawMutation,
   useAdvanceDrawMutation,
