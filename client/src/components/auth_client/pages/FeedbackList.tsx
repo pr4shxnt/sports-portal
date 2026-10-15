@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import api from "../../../services/api";
 import { toast } from "react-hot-toast";
+import { HeaderSkeleton, ListSkeleton } from "../../ui/Skeleton";
 
 interface Feedback {
   _id: string;
@@ -52,8 +53,9 @@ const FeedbackList = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[50vh]">
-        <div className="w-8 h-8 border-4 border-[#DD1D25] border-t-transparent rounded-full animate-spin"></div>
+      <div className="p-6 space-y-6">
+        <HeaderSkeleton action={false} />
+        <ListSkeleton rows={5} label="Loading feedback" />
       </div>
     );
   }

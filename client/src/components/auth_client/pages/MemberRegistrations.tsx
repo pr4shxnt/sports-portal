@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import api from "../../../services/api";
 import { format } from "date-fns";
-import LoadingSpinner from "../../ui/LoadingSpinner";
+import { TableSkeleton } from "../../ui/Skeleton";
 
 interface Registration {
   _id: string;
@@ -305,7 +305,7 @@ const MemberRegistrations = () => {
       </div>
 
       {loading ? (
-        <LoadingSpinner />
+        <TableSkeleton rows={8} cols={6} label="Loading registrations" />
       ) : registrations.length === 0 ? (
         <div className="text-center py-12 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800">
           <p className="text-zinc-500">No registration requests found.</p>

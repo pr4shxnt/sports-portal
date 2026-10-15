@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import Modal from "../../ui/Modal";
-import api from "../../../services/api";
+import { errorMessage, useUpdateMatchMutation } from "../../../store/api";
 import {
   formatScore,
   parseScore,
@@ -17,17 +17,14 @@ interface MatchScoreModalProps {
   team1: TeamRef | null;
   team2: TeamRef | null;
   currentScore: string;
-  onUpdate: (draw: Draw) => void;
+  /** Optional: the cached draw lists are already updated in place. */
+  onUpdate?: (draw: Draw) => void;
   /** League/group fixtures may end level; knockout ties go to penalties. */
   allowDraw?: boolean;
 }
 
 const toGoals = (value: string) =>
   Math.max(0, Math.min(99, Math.floor(Number(value) || 0)));
-
-const errorMessage = (err: unknown, fallback: string) =>
-  (err as { response?: { data?: { message?: string } } })?.response?.data
-    ?.message || fallback;
 
 const ScoreInput = ({
   label,
@@ -70,6 +67,7 @@ const MatchScoreModal = ({
   const [pens2, setPens2] = useState("0");
   const [isUpdating, setIsUpdating] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const [updateMatch] = useUpdateMatchMutation();
 
   useEffect(() => {
     const parsed = parseScore(currentScore);
@@ -103,10 +101,12 @@ const MatchScoreModal = ({
   const handleUpdateScore = async () => {
     setIsUpdating(true);
     try {
-      const res = await api.patch(`/draws/${drawId}/score`, {
-        matchScores: { [matchId]: scoreString },
-      });
-      onUpdate(res.data);
+      const draw = await updateMatch({
+        drawId,
+        matchId,
+        score: scoreString,
+      }).unwrap();
+      onUpdate?.(draw);
       toast.success("Live score updated");
     } catch (err) {
       toast.error(errorMessage(err, "Failed to update score"));
@@ -132,11 +132,13 @@ const MatchScoreModal = ({
     setIsFinalizing(true);
     try {
       // Score and result are saved together in a single request.
-      const res = await api.patch(`/draws/${drawId}/results`, {
-        matchScores: { [matchId]: scoreString },
-        matchResults: { [matchId]: winner ? winner._id : "DRAW" },
-      });
-      onUpdate(res.data);
+      const draw = await updateMatch({
+        drawId,
+        matchId,
+        score: scoreString,
+        result: winner ? winner._id : "DRAW",
+      }).unwrap();
+      onUpdate?.(draw);
       toast.success("Match finalized");
       onClose();
     } catch (err) {

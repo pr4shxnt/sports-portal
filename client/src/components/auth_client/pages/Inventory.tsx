@@ -4,7 +4,7 @@ import type { Equipment, Responsibility } from "../../../types";
 import { RequestStatus } from "../../../types";
 import { toast } from "react-hot-toast";
 import Modal from "../../ui/Modal";
-import LoadingSpinner from "../../ui/LoadingSpinner";
+import { HeaderSkeleton, TableSkeleton } from "../../ui/Skeleton";
 
 const Inventory = () => {
   const [items, setItems] = useState<Equipment[]>([]);
@@ -233,7 +233,13 @@ const Inventory = () => {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading)
+    return (
+      <div className="p-6 space-y-6">
+        <HeaderSkeleton />
+        <TableSkeleton rows={8} label="Loading inventory" />
+      </div>
+    );
 
   const pendingRequests = responsibilities.filter(
     (r) => r.status === RequestStatus.PENDING,
