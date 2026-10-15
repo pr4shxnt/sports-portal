@@ -3,8 +3,6 @@ import { equipmentService } from "../../../services/equipment.service";
 import type { Equipment, Responsibility } from "../../../types";
 import { RequestStatus } from "../../../types";
 import { toast } from "react-hot-toast";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import Modal from "../../ui/Modal";
 import LoadingSpinner from "../../ui/LoadingSpinner";
 
@@ -41,7 +39,7 @@ const Inventory = () => {
       ]);
       setItems(equipData);
       setResponsibilities(respData);
-    } catch (error) {
+    } catch {
       toast.error("Failed to fetch inventory data");
     } finally {
       setLoading(false);
@@ -114,6 +112,11 @@ const Inventory = () => {
         return;
       }
 
+      // Loaded on demand to keep the PDF libraries out of the page bundle.
+      const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
       const doc = new jsPDF() as any;
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
