@@ -67,3 +67,10 @@ export const advanceDrawSchema = z.discriminatedUnion("mode", [
     bestPlaced: z.number().int().min(0).optional(),
   }),
 ]);
+
+export const requestWindowSchema = z.object({
+  mode: z.enum(["scheduled", "open", "closed"]).optional(),
+  openHour: z.number().int().min(0).max(23).optional(),
+  closeHour: z.number().int().min(1).max(24).optional(),
+  note: z.string().max(200).optional(),
+});

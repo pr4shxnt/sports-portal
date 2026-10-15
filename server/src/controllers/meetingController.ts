@@ -144,12 +144,14 @@ export const getMeetings = async (req: Request, res: Response) => {
     if (userRole === "admin") {
       meetings = await Meeting.find()
         .populate("createdBy", "name email")
-        .sort({ date: -1 });
+        .sort({ date: -1 })
+        .lean();
     } else {
       // Other users only see meetings they are participants of
       meetings = await Meeting.find({ participants: userEmail })
         .populate("createdBy", "name email")
-        .sort({ date: -1 });
+        .sort({ date: -1 })
+        .lean();
     }
 
     res.json(meetings);
