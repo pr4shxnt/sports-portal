@@ -1,8 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import api from "../../../services/api";
 import { format } from "date-fns";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
 import LoadingSpinner from "../../ui/LoadingSpinner";
 
 interface Registration {
@@ -42,23 +40,28 @@ const MemberRegistrations = () => {
   );
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
-  const fetchRegistrations = async () => {
+  // Only the latest request may update state, so a slow response for an old
+  // filter can't overwrite the list for the current one.
+  const latestRequest = useRef(0);
+  const fetchRegistrations = useCallback(async () => {
+    const requestId = ++latestRequest.current;
     try {
       setLoading(true);
       const endpoint = `/forms/membership-registrations/all?status=${filter}`;
       const response = await api.get(endpoint);
+      if (requestId !== latestRequest.current) return;
       setRegistrations(response.data);
       setSelectedIds([]); // Clear selection on filter change
     } catch (err) {
       console.error("Failed to fetch registrations:", err);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) setLoading(false);
     }
-  };
+  }, [filter]);
 
   useEffect(() => {
     fetchRegistrations();
-  }, [filter]);
+  }, [fetchRegistrations]);
 
   const toggleSelectAll = () => {
     const pendingRegs = registrations.filter((r) => r.status === "pending");
@@ -149,7 +152,7 @@ const MemberRegistrations = () => {
     }
   };
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     const start = new Date(startDate);
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999); // Inclusion of the full end day
@@ -164,6 +167,11 @@ const MemberRegistrations = () => {
       return;
     }
 
+    // Loaded on demand to keep the PDF libraries out of the page bundle.
+    const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     const doc = new jsPDF() as any;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();

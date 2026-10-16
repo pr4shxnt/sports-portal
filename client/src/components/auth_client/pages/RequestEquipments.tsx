@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { equipmentService } from "../../../services/equipment.service";
 import { useAppSelector } from "../../../store/hooks";
 import type { Equipment, Responsibility } from "../../../types";
@@ -38,11 +38,7 @@ const RequestEquipments = () => {
 
   const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    fetchData();
-  }, [refreshKey]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [equipData, respData] = await Promise.all([
@@ -71,25 +67,32 @@ const RequestEquipments = () => {
       );
       const waitlists: Record<string, Responsibility[]> = {};
 
-      for (const resp of myApproved) {
-        const equipId =
-          typeof resp.equipment === "object"
-            ? resp.equipment._id
-            : resp.equipment;
-        try {
-          const list = await equipmentService.getWaitlist(equipId);
-          waitlists[resp._id] = list; // Map by Responsibility ID for easy access in row
-        } catch (e) {
-          console.error("Failed to load waitlist for", equipId);
-        }
-      }
+      // Fetch all waitlists concurrently rather than one request at a time.
+      await Promise.all(
+        myApproved.map(async (resp) => {
+          const equipId =
+            typeof resp.equipment === "object"
+              ? resp.equipment._id
+              : resp.equipment;
+          try {
+            // Map by Responsibility ID for easy access in row
+            waitlists[resp._id] = await equipmentService.getWaitlist(equipId);
+          } catch {
+            console.error("Failed to load waitlist for", equipId);
+          }
+        }),
+      );
       setWaitlistMap(waitlists);
-    } catch (error) {
+    } catch {
       toast.error("Failed to fetch equipment data");
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?._id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData, refreshKey]);
 
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault();

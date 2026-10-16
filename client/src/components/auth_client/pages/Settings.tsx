@@ -30,7 +30,7 @@ const Settings = () => {
           ? "Announcements will be sent to your email!"
           : "Announcement emails disabled.",
       );
-    } catch (err) {
+    } catch {
       toast.error("Failed to update notification settings");
     }
   };

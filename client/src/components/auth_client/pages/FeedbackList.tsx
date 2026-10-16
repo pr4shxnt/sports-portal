@@ -29,7 +29,7 @@ const FeedbackList = () => {
       setFeedbacks(
         response.data.filter((r: Feedback) => r.type === "feedback"),
       );
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to fetch feedbacks");
     } finally {
       setLoading(false);
@@ -45,7 +45,7 @@ const FeedbackList = () => {
       await api.put(`/reports/${id}`, { status });
       toast.success("Status updated");
       fetchFeedbacks();
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to update status");
     }
   };
