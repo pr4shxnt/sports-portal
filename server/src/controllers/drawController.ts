@@ -139,10 +139,22 @@ export const createDraw = async (req: Request, res: Response) => {
 };
 
 // @desc    Get all draws (globally)
-// @route   GET /api/draws
+// @route   GET /api/draws            full draws with teams populated
+// @route   GET /api/draws?view=summary  id/sport/event/stage only
 // @access  Public
 export const getAllDraws = async (req: Request, res: Response) => {
   try {
+    if (req.query.view === "summary") {
+      // No team population: the All Teams page only needs to know which
+      // sport/event pairs already have a draw.
+      const summaries = await Draw.find()
+        .select("event sport format stage parentDraw createdAt")
+        .populate("event", "title date")
+        .sort({ createdAt: -1 })
+        .lean();
+      return res.json(summaries);
+    }
+
     const draws = await Draw.find()
       .populate(DRAW_POPULATE)
       .populate("event", "title slug date")

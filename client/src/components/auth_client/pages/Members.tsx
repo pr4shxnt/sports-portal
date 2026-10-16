@@ -3,7 +3,7 @@ import api from "../../../services/api";
 import type { PaginatedUsersResponse } from "../../../services/user.service";
 import { useAppSelector } from "../../../store/hooks";
 import Modal from "../../ui/Modal";
-import LoadingSpinner from "../../ui/LoadingSpinner";
+import { HeaderSkeleton, TableSkeleton } from "../../ui/Skeleton";
 
 interface User {
   _id: string;
@@ -242,7 +242,12 @@ const Members = () => {
   };
 
   if (globalLoading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="p-6 space-y-6">
+        <HeaderSkeleton action={false} />
+        <TableSkeleton rows={8} label="Loading members" />
+      </div>
+    );
   }
 
   if (error) {

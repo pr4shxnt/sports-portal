@@ -6,7 +6,10 @@ import { store } from "./store/store";
 import { useAppDispatch } from "./store/hooks";
 import { fetchProfile } from "./store/slices/authSlice";
 import ErrorPage from "./components/ui/ErrorPage";
-import LoadingSpinner from "./components/ui/LoadingSpinner";
+import {
+  DashboardShellSkeleton,
+  PublicPageSkeleton,
+} from "./components/ui/Skeleton";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 // Every page is its own chunk so visitors only download what they open.
@@ -61,7 +64,9 @@ const router = createBrowserRouter([
       {
         element: (
           <ProtectedRoute>
-            <RootComp />
+            <Suspense fallback={<DashboardShellSkeleton />}>
+              <RootComp />
+            </Suspense>
           </ProtectedRoute>
         ),
         children: [
@@ -188,7 +193,7 @@ export default function App() {
       <Provider store={store}>
         <AuthInitializer>
           <Toaster position="top-center" />
-          <Suspense fallback={<LoadingSpinner fullScreen />}>
+          <Suspense fallback={<PublicPageSkeleton />}>
             <RouterProvider router={router} />
           </Suspense>
         </AuthInitializer>

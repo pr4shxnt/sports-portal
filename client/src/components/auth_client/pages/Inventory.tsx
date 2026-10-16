@@ -4,7 +4,8 @@ import type { Equipment, Responsibility } from "../../../types";
 import { RequestStatus } from "../../../types";
 import { toast } from "react-hot-toast";
 import Modal from "../../ui/Modal";
-import LoadingSpinner from "../../ui/LoadingSpinner";
+import RequestWindowControl from "../equipment/RequestWindowControl";
+import { HeaderSkeleton, TableSkeleton } from "../../ui/Skeleton";
 
 const Inventory = () => {
   const [items, setItems] = useState<Equipment[]>([]);
@@ -233,7 +234,13 @@ const Inventory = () => {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading)
+    return (
+      <div className="p-6 space-y-6">
+        <HeaderSkeleton />
+        <TableSkeleton rows={8} label="Loading inventory" />
+      </div>
+    );
 
   const pendingRequests = responsibilities.filter(
     (r) => r.status === RequestStatus.PENDING,
@@ -355,6 +362,9 @@ const Inventory = () => {
           </div>
         </div>
       </div>
+
+      {/* Who can request equipment, and when */}
+      <RequestWindowControl />
 
       {/* Equipment Stock */}
       <div className="bg-white dark:bg-zinc-900 p-4 sm:p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">

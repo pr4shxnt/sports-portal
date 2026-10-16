@@ -1,49 +1,43 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import Modal from "../../ui/Modal";
-import api from "../../../services/api";
 import DrawTeamsModal from "./DrawTeamsModal";
-import LoadingSpinner from "../../ui/LoadingSpinner";
+import { HeaderSkeleton, TeamSectionsSkeleton } from "../../ui/Skeleton";
+import {
+  useGetDrawSummariesQuery,
+  useGetEventsQuery,
+  useGetTeamsQuery,
+  refId,
+  type Team,
+} from "../../../store/api";
 import { TeamsPdfTemplate } from "./DrawPdfTemplate";
 import { exportElementToPdf, nextPaint } from "../../../lib/pdfExport";
 import { toast } from "react-hot-toast";
 import { useAppSelector } from "../../../store/hooks";
 import { Link } from "react-router-dom";
 
-interface TeamMember {
-  _id?: string;
-  name: string;
-  email: string;
-  phone: string;
-}
-
-interface Team {
-  _id: string;
-  name: string;
-  sport: string;
-  teamType: string;
-  members: TeamMember[];
-  executive?: {
-    _id: string;
-    name: string;
-    email: string;
-  };
-  event?: string;
-  createdAt: string;
-}
-
 const AllTeams = () => {
   const { user } = useAppSelector((state) => state.auth);
   const canDrawTeams = user?.role === "admin";
 
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Shared cache with the event pages; a new draw invalidates `draws`, so
+  // "View Draw" appears without a manual refresh.
+  const teamsQuery = useGetTeamsQuery();
+  const eventsQuery = useGetEventsQuery();
+  // Summaries only: we just need to know which sport/event has a draw.
+  const drawsQuery = useGetDrawSummariesQuery();
+  const teams = teamsQuery.data ?? [];
+  const events = eventsQuery.data ?? [];
+  const draws = drawsQuery.data ?? [];
+  const loading =
+    teamsQuery.isLoading || eventsQuery.isLoading || drawsQuery.isLoading;
+  const error =
+    teamsQuery.isError || eventsQuery.isError || drawsQuery.isError
+      ? "Failed to load teams"
+      : null;
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [isDrawModalOpen, setIsDrawModalOpen] = useState(false);
   const [preSelectedSport, setPreSelectedSport] = useState<string>("");
   const [preSelectedEventId, setPreSelectedEventId] = useState<string>("");
-  const [events, setEvents] = useState<any[]>([]);
-  const [draws, setDraws] = useState<any[]>([]);
 
   // PDF Export State
   const [isDownloading, setIsDownloading] = useState(false);
@@ -77,28 +71,6 @@ const AllTeams = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [teamsRes, eventsRes, drawsRes] = await Promise.all([
-          api.get("/teams"),
-          api.get("/events"),
-          api.get("/draws"),
-        ]);
-        setTeams(teamsRes.data);
-        setEvents(eventsRes.data);
-        setDraws(drawsRes.data);
-      } catch (err: any) {
-        console.error("Error fetching data:", err);
-        setError("Failed to load teams");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
   // Group teams by active/past status and sport
   const teamsCategorized = teams.reduce(
     (acc, team) => {
@@ -106,7 +78,7 @@ const AllTeams = () => {
       const sportLower = sport.toLowerCase();
       const matchingEvent = events.find(
         (e) =>
-          e._id === team.event ||
+          e._id === refId(team.event) ||
           e.slug === sportLower ||
           e.title.toLowerCase().includes(sportLower),
       );
@@ -133,7 +105,12 @@ const AllTeams = () => {
   );
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="p-6 space-y-10">
+        <HeaderSkeleton action={false} />
+        <TeamSectionsSkeleton />
+      </div>
+    );
   }
 
   if (error) {
@@ -200,13 +177,13 @@ const AllTeams = () => {
                     (d) =>
                       d.sport === sport &&
                       (!matchingEventForDraw ||
-                        (d.event?._id ?? d.event) === matchingEventForDraw._id),
+                        refId(d.event) === matchingEventForDraw._id),
                   );
 
                   if (existingDraw) {
                     return (
                       <Link
-                        to={`/dashboard/events/${existingDraw.event?._id ?? existingDraw.event}`}
+                        to={`/dashboard/events/${refId(existingDraw.event)}`}
                         className="px-3 py-1 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-[10px] font-bold uppercase tracking-wider rounded-md hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors"
                       >
                         View Draw →
@@ -482,7 +459,6 @@ const AllTeams = () => {
         events={events}
         initialSport={preSelectedSport}
         initialEventId={preSelectedEventId}
-        onCreated={(draw) => setDraws((prev) => [draw, ...prev])}
       />
 
       {/* Hidden Export Template */}

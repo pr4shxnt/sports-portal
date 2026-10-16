@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import Modal from "../../ui/Modal";
-import api from "../../../services/api";
+import { errorMessage, useCreateDrawMutation } from "../../../store/api";
 import {
   balancedSizes,
   fixtureCount,
@@ -84,10 +84,6 @@ const buildGroupings = (teams: Team[], perGroup: number) => {
   });
 };
 
-const errorMessage = (err: unknown, fallback: string) =>
-  (err as { response?: { data?: { message?: string } } })?.response?.data
-    ?.message || fallback;
-
 const selectClass =
   "w-full px-4 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#DD1D25]";
 
@@ -113,6 +109,7 @@ const DrawTeamsModal = ({
   const [isSaving, setIsSaving] = useState(false);
   const [savedDraw, setSavedDraw] = useState<Draw | null>(null);
   const saveStarted = useRef(false);
+  const [createDraw] = useCreateDrawMutation();
 
   const sports = Array.from(
     new Set(teams.filter((t) => t.teamType === "event").map((t) => t.sport)),
@@ -156,7 +153,7 @@ const DrawTeamsModal = ({
     saveStarted.current = true;
     setIsSaving(true);
     try {
-      const res = await api.post<Draw>("/draws", {
+      const draw = await createDraw({
         event: selectedEvent,
         format,
         sport: selectedSport,
@@ -170,9 +167,9 @@ const DrawTeamsModal = ({
                 teams: g.teams.map((t) => t._id),
               }))
             : undefined,
-      });
-      setSavedDraw(res.data);
-      onCreated?.(res.data);
+      }).unwrap();
+      setSavedDraw(draw);
+      onCreated?.(draw);
       toast.success("Draw saved");
     } catch (error) {
       saveStarted.current = false;
@@ -189,6 +186,7 @@ const DrawTeamsModal = ({
     drawnTeams,
     perGroup,
     onCreated,
+    createDraw,
   ]);
 
   // Reveal one team at a time, then persist the draw once.

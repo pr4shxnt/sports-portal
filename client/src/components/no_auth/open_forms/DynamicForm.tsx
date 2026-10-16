@@ -9,7 +9,7 @@ import {
 } from "../../../store/slices/formSlice";
 import img from "../../../assets/logo_main.png";
 import Cropper from "react-easy-crop";
-import LoadingSpinner from "../../ui/LoadingSpinner";
+import { FormSkeleton } from "../../ui/Skeleton";
 
 interface FormData {
   [key: string]: any;
@@ -609,7 +609,13 @@ const DynamicForm = () => {
   };
 
   if (loading) {
-    return <LoadingSpinner fullScreen />;
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 px-4 py-10">
+        <div className="max-w-2xl mx-auto">
+          <FormSkeleton />
+        </div>
+      </div>
+    );
   }
 
   if (!formSchema || !formSchema.isActive) {
