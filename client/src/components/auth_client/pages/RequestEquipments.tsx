@@ -4,7 +4,9 @@ import { useAppSelector } from "../../../store/hooks";
 import type { Equipment, Responsibility } from "../../../types";
 import { RequestStatus } from "../../../types";
 import { toast } from "react-hot-toast";
-import LoadingSpinner from "../../ui/LoadingSpinner";
+import { CardGridSkeleton, HeaderSkeleton } from "../../ui/Skeleton";
+import { useGetRequestWindowQuery } from "../../../store/api";
+import RequestWindowControl from "../equipment/RequestWindowControl";
 
 const RequestEquipments = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -16,17 +18,15 @@ const RequestEquipments = () => {
   const [selectedItem, setSelectedItem] = useState("");
   const [notes, setNotes] = useState("");
 
-  const isWithinRequestWindow = () => {
-    const nptTime = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Kathmandu",
-      hour: "numeric",
-      hour12: false,
-    });
-    const currentHourNPT = parseInt(nptTime.format(new Date()));
-    return currentHourNPT >= 9 && currentHourNPT < 17;
-  };
-
-  const isWindowOpen = isWithinRequestWindow();
+  // Staff-controlled window (scheduled hours / always open / closed). Polled
+  // so a scheduled window opens and closes on the hour without a reload.
+  const { data: requestWindow } = useGetRequestWindowQuery(undefined, {
+    pollingInterval: 60_000,
+  });
+  // Optimistically open until loaded; the server enforces it anyway.
+  const isWindowOpen = requestWindow?.isOpen ?? true;
+  const closedMessage =
+    requestWindow?.message ?? "Equipment requests are currently closed.";
 
   // Transfer Logic
   const [waitlistMap, setWaitlistMap] = useState<
@@ -65,24 +65,23 @@ const RequestEquipments = () => {
       const myApproved = myResponsibilities.filter(
         (r) => r.status === RequestStatus.APPROVED,
       );
-      const waitlists: Record<string, Responsibility[]> = {};
-
-      // Fetch all waitlists concurrently rather than one request at a time.
-      await Promise.all(
-        myApproved.map(async (resp) => {
-          const equipId =
-            typeof resp.equipment === "object"
-              ? resp.equipment._id
-              : resp.equipment;
-          try {
-            // Map by Responsibility ID for easy access in row
-            waitlists[resp._id] = await equipmentService.getWaitlist(equipId);
-          } catch {
-            console.error("Failed to load waitlist for", equipId);
-          }
-        }),
+      // One request for every held item's waitlist, keyed by equipment id.
+      const equipIdOf = (resp: Responsibility) =>
+        typeof resp.equipment === "object"
+          ? resp.equipment._id
+          : resp.equipment;
+      const byEquipment = await equipmentService
+        .getWaitlists([...new Set(myApproved.map(equipIdOf))])
+        .catch(() => ({}) as Record<string, Responsibility[]>);
+      // Map by Responsibility ID for easy access in row
+      setWaitlistMap(
+        Object.fromEntries(
+          myApproved.map((resp) => [
+            resp._id,
+            byEquipment[equipIdOf(resp)] ?? [],
+          ]),
+        ),
       );
-      setWaitlistMap(waitlists);
     } catch {
       toast.error("Failed to fetch equipment data");
     } finally {
@@ -97,9 +96,7 @@ const RequestEquipments = () => {
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isWindowOpen) {
-      toast.error(
-        "Requests are only allowed between 9:00 AM and 5:00 PM Nepal Time.",
-      );
+      toast.error(closedMessage);
       return;
     }
     if (!selectedItem) return;
@@ -160,10 +157,17 @@ const RequestEquipments = () => {
     });
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading)
+    return (
+      <div className="p-6 space-y-6">
+        <HeaderSkeleton action={false} />
+        <CardGridSkeleton label="Loading equipment" />
+      </div>
+    );
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
+      <RequestWindowControl />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Request Form */}
         <div className="lg:col-span-1">
@@ -180,8 +184,7 @@ const RequestEquipments = () => {
             {!isWindowOpen && (
               <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 rounded-lg">
                 <p className="text-xs text-red-600 dark:text-red-400 font-medium">
-                  Requests are only accepted between **9:00 AM - 5:00 PM** Nepal
-                  Time.
+                  {closedMessage}
                 </p>
               </div>
             )}

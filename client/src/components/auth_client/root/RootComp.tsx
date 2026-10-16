@@ -1,7 +1,7 @@
 import { Suspense, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { Sidebar } from "../UI/Sidebar";
-import LoadingSpinner from "../../ui/LoadingSpinner";
+import { PageSkeleton } from "../../ui/Skeleton";
 
 const RootComp = () => {
   useEffect(() => {
@@ -13,7 +13,7 @@ const RootComp = () => {
       <Sidebar />
       <main className="flex-1 w-full min-w-0 ml-0 md:ml-64 p-4 md:p-8 pt-16 md:pt-8 transition-all duration-300">
         {/* Keeps the sidebar on screen while a page chunk loads */}
-        <Suspense fallback={<LoadingSpinner />}>
+        <Suspense fallback={<PageSkeleton />}>
           <Outlet />
         </Suspense>
       </main>

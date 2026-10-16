@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAppSelector } from "../store/hooks";
-import LoadingSpinner from "./ui/LoadingSpinner";
+import { DashboardShellSkeleton } from "./ui/Skeleton";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -14,7 +14,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   // Wait for the session check on hard refresh instead of bouncing to /login.
   if (isCheckingAuth) {
-    return <LoadingSpinner fullScreen />;
+    return <DashboardShellSkeleton />;
   }
 
   if (!isAuthenticated) {
