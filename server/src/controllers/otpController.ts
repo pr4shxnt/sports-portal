@@ -31,7 +31,7 @@ export const sendOTP = async (req: Request, res: Response) => {
     }
 
     const otpCode = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes expiry
 
     // Save or update OTP in DB
     await OTP.findOneAndUpdate(

@@ -49,7 +49,7 @@ export const sendOTPEmail = async (email: string, otpCode: string) => {
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 400px; padding: 40px 20px; color: #111;">
         <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 24px; color: #DD1D25;">Sports Club</h1>
         <p style="font-size: 15px; line-height: 1.5; color: #555; margin-bottom: 32px;">
-          Use the following code to complete your verification. This code expires in 10 minutes.
+          Use the following code to complete your verification. This code expires in 30 minutes.
         </p>
         <div style="font-size: 36px; font-weight: 700; letter-spacing: 4px; color: #111; margin-bottom: 40px;">
           ${otpCode}
