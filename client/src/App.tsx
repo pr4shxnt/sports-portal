@@ -20,6 +20,15 @@ const LoginForm = lazy(() => import("./components/no_auth/Login"));
 const DynamicForm = lazy(
   () => import("./components/no_auth/open_forms/DynamicForm"),
 );
+const ChampionsLeague = lazy(
+  () => import("./components/auth_client/champions/ChampionsLeague"),
+);
+const ChampionsLeagueManage = lazy(
+  () => import("./components/auth_client/champions/ChampionsLeagueManage"),
+);
+const ChampionsLeaguePublic = lazy(
+  () => import("./pages/ChampionsLeaguePublic"),
+);
 const RootComp = lazy(() => import("./components/auth_client/root/RootComp"));
 const RequestEquipments = lazy(
   () => import("./components/auth_client/pages/RequestEquipments"),
@@ -142,6 +151,14 @@ const router = createBrowserRouter([
             path: "meetings",
             element: <MeetingManagement />,
           },
+          {
+            path: "champions-league",
+            element: <ChampionsLeague />,
+          },
+          {
+            path: "champions-league/:id",
+            element: <ChampionsLeagueManage />,
+          },
         ],
       },
       {
@@ -170,6 +187,14 @@ const router = createBrowserRouter([
       {
         path: "/form/:formId",
         element: <DynamicForm />,
+      },
+      {
+        path: "/champions-league",
+        element: <ChampionsLeaguePublic />,
+      },
+      {
+        path: "/champions-league/:slug",
+        element: <ChampionsLeaguePublic />,
       },
       {
         path: "*",

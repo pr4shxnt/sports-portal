@@ -6,6 +6,8 @@ import FormSubmission, { SubmissionStatus } from "../models/FormSubmission.js";
 import Team, { TeamType } from "../models/Team.js";
 import User, { UserRole } from "../models/User.js";
 import Event from "../models/Event.js";
+import { teamFromSubmission } from "../utils/submissionTeam.js";
+import { syncCompetitionTeam } from "./competitionController.js";
 import NotificationList from "../models/NotificationList.js";
 import MemberRegistration, {
   RegistrationStatus,
@@ -422,55 +424,14 @@ export const updateSubmissionStatus = async (req: Request, res: Response) => {
 
     await submission.save();
 
+    // Champions League forms keep their team list in step with approvals.
+    await syncCompetitionTeam(submission);
+
     // If approved and createTeam is true, create an event team
     if (status === SubmissionStatus.APPROVED && createTeam) {
-      const formData = submission.data;
-
-      console.log(
-        "[Team Creation] Form data:",
-        JSON.stringify(formData, null, 2),
-      );
-
-      // Extract members from form data - handle various field naming conventions
-      let members = [];
-
-      if (formData.members && Array.isArray(formData.members)) {
-        // If members array exists, use it directly
-        members = formData.members;
-      } else {
-        // Otherwise, construct a single member entry from individual fields
-        const memberEntry: any = {};
-
-        // Try to find name field (various naming conventions)
-        const nameField =
-          formData.name ||
-          formData.team_leader ||
-          formData.full_name ||
-          formData.captain_name;
-        if (nameField) memberEntry.name = nameField;
-
-        // Try to find email field
-        const emailField =
-          formData.email || formData.team_email || formData.contact_email;
-        if (emailField) memberEntry.email = emailField;
-
-        // Try to find phone field
-        const phoneField =
-          formData.phone ||
-          formData.contact ||
-          formData.phone_number ||
-          formData.mobile;
-        if (phoneField) memberEntry.phone = phoneField;
-
-        // Only add if we have at least name and email
-        if (memberEntry.name && memberEntry.email) {
-          members.push(memberEntry);
-        }
-      }
-
-      console.log(
-        "[Team Creation] Extracted members:",
-        JSON.stringify(members, null, 2),
+      const { name: teamName, members } = teamFromSubmission(
+        submission.data,
+        (submission.form as any).fields,
       );
 
       // Create team from submission data ONLY if a matching event exists
@@ -479,8 +440,7 @@ export const updateSubmissionStatus = async (req: Request, res: Response) => {
 
       if (event) {
         const team = await Team.create({
-          name:
-            formData.team_name || formData.full_name || formData.name || "Team",
+          name: teamName,
           sport: (submission.form as any).formTitle
             .replace(/Registration/gi, "")
             .replace(/Form/gi, "")

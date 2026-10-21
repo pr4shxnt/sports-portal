@@ -128,6 +128,7 @@ export interface CreateDrawBody {
 
 export type AdvanceDrawBody =
   | { mode: "groups"; qualifiers: number; groupSize: number }
+  | { mode: "playIn"; direct: number; groupSize: number; perGroup?: number }
   | {
       mode: "knockout";
       qualifiers?: number;
@@ -136,6 +137,101 @@ export type AdvanceDrawBody =
       bestPlaced?: number;
     };
 
+/* ── Champions League ── */
+
+export type CompetitionStatus = "setup" | "live";
+
+export interface Competition {
+  _id: string;
+  name: string;
+  season?: string;
+  sport: string;
+  description?: string;
+  formSlug: string;
+  status: CompetitionStatus;
+  createdAt: string;
+  teamCount?: number;
+}
+
+export interface LeaguePlayer {
+  _id: string;
+  team: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  studentId?: string;
+  programme?: string;
+  intake?: string;
+  shirtNumber?: number;
+  position: "GK" | "FP";
+  captaincy?: "captain" | "vice" | null;
+  photo?: { url: string; publicId: string };
+}
+
+/** Squad size the regulations require (§8.1). */
+export const SQUAD_MIN = 7;
+export const SQUAD_MAX = 10;
+
+export interface LeagueTeam {
+  _id: string;
+  name: string;
+  players: LeaguePlayer[];
+  /** Set when the team came from an approved application. */
+  formSubmission?: string;
+  createdAt: string;
+}
+
+export interface CompetitionDetail {
+  competition: Competition;
+  teams: LeagueTeam[];
+  draws: Draw[];
+  form: { formId: string; formTitle: string; isActive: boolean } | null;
+  /** Present after a create/sync/slug change. */
+  sync?: { added: number; removed: number };
+}
+
+export interface FormPreview {
+  formId: string;
+  formTitle: string;
+  isActive: boolean;
+  approved: number;
+  pending: number;
+  rejected: number;
+  linkedTo: { _id: string; name: string } | null;
+}
+
+export type CompetitionInput = Pick<
+  Competition,
+  "name" | "sport" | "formSlug"
+> &
+  Partial<Pick<Competition, "season" | "description">>;
+
+export type LeaguePlayerInput = Omit<
+  LeaguePlayer,
+  "_id" | "team" | "shirtNumber" | "photo"
+> & {
+  _id?: string;
+  shirtNumber?: number | null;
+  photo?: { url: string; publicId: string } | null;
+};
+
+export interface LeagueTeamInput {
+  name: string;
+  players: LeaguePlayerInput[];
+}
+
+export type PublicPlayer = Pick<
+  LeaguePlayer,
+  "_id" | "name" | "shirtNumber" | "position" | "captaincy" | "photo"
+>;
+
+export interface PublicCompetition {
+  competition: Competition;
+  teams: { _id: string; name: string; players: PublicPlayer[] }[];
+  draws: Draw[];
+  registrationOpen: boolean;
+}
+
 const drawTags = (draw: { _id: string }) => [
   { type: "Draw" as const, id: draw._id },
 ];
@@ -143,7 +239,7 @@ const drawTags = (draw: { _id: string }) => [
 export const sportsApi = createApi({
   reducerPath: "sportsApi",
   baseQuery: axiosBaseQuery,
-  tagTypes: ["Event", "Team", "Draw", "RequestWindow"],
+  tagTypes: ["Event", "Team", "Draw", "RequestWindow", "Competition"],
   // Refetch stale data when the tab regains focus or the network returns.
   refetchOnFocus: true,
   refetchOnReconnect: true,
@@ -216,6 +312,98 @@ export const sportsApi = createApi({
           /* handled by the caller */
         }
       },
+    }),
+
+    /* ── Champions League ── */
+    getCompetitions: build.query<Competition[], void>({
+      query: () => ({ url: "/competitions" }),
+      providesTags: [{ type: "Competition", id: "LIST" }],
+    }),
+    getCompetition: build.query<CompetitionDetail, string>({
+      query: (id) => ({ url: `/competitions/${id}` }),
+      // Draw tags: score entry and phase advancement refresh this page too.
+      providesTags: (detail, _e, id) => [
+        { type: "Competition", id },
+        ...(detail?.draws ?? []).flatMap(drawTags),
+      ],
+    }),
+    previewCompetitionForm: build.query<FormPreview, string>({
+      query: (slug) => ({
+        url: `/competitions/forms/${encodeURIComponent(slug)}`,
+      }),
+    }),
+    createCompetition: build.mutation<CompetitionDetail, CompetitionInput>({
+      query: (data) => ({ url: "/competitions", method: "POST", data }),
+      invalidatesTags: [{ type: "Competition", id: "LIST" }],
+    }),
+    updateCompetition: build.mutation<
+      CompetitionDetail,
+      { id: string; data: Partial<CompetitionInput> }
+    >({
+      query: ({ id, data }) => ({
+        url: `/competitions/${id}`,
+        method: "PATCH",
+        data,
+      }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "Competition", id },
+        { type: "Competition", id: "LIST" },
+      ],
+    }),
+    deleteCompetition: build.mutation<{ message: string }, string>({
+      query: (id) => ({ url: `/competitions/${id}`, method: "DELETE" }),
+      invalidatesTags: [{ type: "Competition", id: "LIST" }],
+    }),
+    /** sync | start | reset — each returns the refreshed competition. */
+    competitionAction: build.mutation<
+      CompetitionDetail,
+      { id: string; action: "sync" | "start" | "reset" }
+    >({
+      query: ({ id, action }) => ({
+        url: `/competitions/${id}/${action}`,
+        method: "POST",
+      }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "Competition", id },
+        { type: "Competition", id: "LIST" },
+      ],
+    }),
+    saveLeagueTeam: build.mutation<
+      CompetitionDetail,
+      { id: string; teamId?: string; data: LeagueTeamInput }
+    >({
+      query: ({ id, teamId, data }) => ({
+        url: teamId
+          ? `/competitions/${id}/teams/${teamId}`
+          : `/competitions/${id}/teams`,
+        method: teamId ? "PUT" : "POST",
+        data,
+      }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "Competition", id },
+        { type: "Competition", id: "LIST" },
+      ],
+    }),
+    removeLeagueTeam: build.mutation<
+      CompetitionDetail,
+      { id: string; teamId: string }
+    >({
+      query: ({ id, teamId }) => ({
+        url: `/competitions/${id}/teams/${teamId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "Competition", id },
+        { type: "Competition", id: "LIST" },
+      ],
+    }),
+    getPublicCompetitions: build.query<Competition[], void>({
+      query: () => ({ url: "/competitions/public" }),
+    }),
+    getPublicCompetition: build.query<PublicCompetition, string>({
+      query: (slug) => ({
+        url: `/competitions/public/${encodeURIComponent(slug)}`,
+      }),
     }),
 
     /* ── Draws ── */
@@ -309,6 +497,14 @@ export const sportsApi = createApi({
                   (draft) => replace(draft),
                 ),
               );
+            if (endpointName === "getCompetition")
+              dispatch(
+                sportsApi.util.updateQueryData(
+                  "getCompetition",
+                  originalArgs as string,
+                  (draft) => replace(draft.draws),
+                ),
+              );
             if (endpointName === "getDraws")
               dispatch(
                 sportsApi.util.updateQueryData("getDraws", undefined, (draft) =>
@@ -339,6 +535,17 @@ export const {
   useCreateDrawMutation,
   useAdvanceDrawMutation,
   useUpdateMatchMutation,
+  useGetCompetitionsQuery,
+  useGetCompetitionQuery,
+  usePreviewCompetitionFormQuery,
+  useCreateCompetitionMutation,
+  useUpdateCompetitionMutation,
+  useDeleteCompetitionMutation,
+  useCompetitionActionMutation,
+  useSaveLeagueTeamMutation,
+  useRemoveLeagueTeamMutation,
+  useGetPublicCompetitionsQuery,
+  useGetPublicCompetitionQuery,
 } = sportsApi;
 
 /** Message from an RTK Query error (ours or a serialized one). */

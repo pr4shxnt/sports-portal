@@ -12,6 +12,7 @@ import {
   groupLetter,
   nextPowerOfTwo,
   rankAcrossGroups,
+  serpentineGroups,
 } from "../utils/tournament.js";
 
 const TEAM_FIELDS = "name sport members teamType";
@@ -25,7 +26,11 @@ const DRAW_POPULATE = [
     select: TEAM_FIELDS,
     options: { retainNullValues: true },
   },
+  { path: "directQualifiers", select: TEAM_FIELDS },
 ];
+
+/** Champions League draws are managed in their own section only. */
+const EVENT_DRAWS = { competition: { $exists: false } };
 
 const idOf = (value: any): string => (value?._id ?? value)?.toString?.() ?? "";
 
@@ -147,7 +152,7 @@ export const getAllDraws = async (req: Request, res: Response) => {
     if (req.query.view === "summary") {
       // No team population: the All Teams page only needs to know which
       // sport/event pairs already have a draw.
-      const summaries = await Draw.find()
+      const summaries = await Draw.find(EVENT_DRAWS)
         .select("event sport format stage parentDraw createdAt")
         .populate("event", "title date")
         .sort({ createdAt: -1 })
@@ -155,7 +160,7 @@ export const getAllDraws = async (req: Request, res: Response) => {
       return res.json(summaries);
     }
 
-    const draws = await Draw.find()
+    const draws = await Draw.find(EVENT_DRAWS)
       .populate(DRAW_POPULATE)
       .populate("event", "title slug date")
       .populate("createdBy", "name email")
@@ -259,6 +264,12 @@ export const updateMatchScore = updateMatchMap("matchScores", "match scores");
 type AdvanceBody =
   | { mode: "groups"; qualifiers: number; groupSize: number }
   | {
+      mode: "playIn";
+      direct: number; // Top N go straight to the knockout
+      groupSize: number; // The rest play qualifier groups of this size
+      perGroup?: number; // Top K of each qualifier group join them
+    }
+  | {
       mode: "knockout";
       qualifiers?: number; // League source: top N
       seeding?: "ranked" | "draw"; // League source
@@ -276,11 +287,63 @@ const knockoutStageName = (teams: number) => {
   return `Round of ${size}`;
 };
 
+/**
+ * League → play-in: the top `direct` teams wait for the knockout while every
+ * other team plays serpentine-seeded qualifier groups. No one is eliminated
+ * by the league itself.
+ */
+const advanceToPlayIn = (
+  ranked: string[],
+  body: Extract<AdvanceBody, { mode: "playIn" }>,
+): Partial<IDraw> => {
+  const direct = Number(body.direct);
+  const groupSize = Number(body.groupSize);
+  const perGroup = Number(body.perGroup ?? 1);
+  const rest = ranked.length - direct;
+
+  if (!Number.isInteger(direct) || direct < 1 || rest < 4) {
+    throw new AdvanceError(
+      `Direct qualifiers must leave at least 4 teams for the play-in (max ${ranked.length - 4})`,
+    );
+  }
+  if (!Number.isInteger(groupSize) || groupSize < 2 || groupSize > rest / 2) {
+    throw new AdvanceError(
+      "Teams per qualifier group must make at least 2 groups of 2",
+    );
+  }
+  const groupCount = Math.ceil(rest / groupSize);
+  if (Math.min(...balancedSizes(rest, groupCount)) < 2) {
+    throw new AdvanceError("Every qualifier group needs at least 2 teams");
+  }
+  if (
+    !Number.isInteger(perGroup) ||
+    perGroup < 1 ||
+    perGroup >= rest / groupCount
+  ) {
+    throw new AdvanceError(
+      "Qualifiers per group must be fewer than the teams in each group",
+    );
+  }
+
+  const playIn = ranked.slice(direct);
+  return {
+    format: "Group",
+    stage: "Qualifiers",
+    scoring: "football",
+    drawnTeams: playIn as any,
+    groupings: serpentineGroups(playIn, groupCount) as any,
+    qualifiers: perGroup,
+    directQualifiers: ranked.slice(0, direct) as any,
+  };
+};
+
 /** League → Group stage drawn from pots, or League → seeded knockout. */
 const advanceFromLeague = (
   ranked: string[],
   body: AdvanceBody,
 ): Partial<IDraw> => {
+  if (body.mode === "playIn") return advanceToPlayIn(ranked, body);
+
   const qualifiers = Number(body.qualifiers);
   if (
     !Number.isInteger(qualifiers) ||
@@ -345,6 +408,7 @@ const advanceFromLeague = (
 const advanceFromGroups = (
   tables: { name: string; standings: StandingRow[] }[],
   body: AdvanceBody,
+  direct: string[] = [],
 ): Partial<IDraw> => {
   if (body.mode !== "knockout") {
     throw new AdvanceError("A group stage can only advance to a knockout");
@@ -392,6 +456,28 @@ const advanceFromGroups = (
     tierEntries.push(pool.slice(0, bestPlaced));
   }
 
+  // Play-in groups: direct qualifiers keep their league seeds, then play-in
+  // finishers follow by position and group order (serpentine seeding puts the
+  // best-ranked play-in team in group A). Fixed 1 v N bracket, no draw.
+  if (direct.length) {
+    const seeds = [
+      ...direct,
+      ...Array.from({ length: perGroup }, (_, pos) =>
+        tables.map((t) => t.standings[pos].teamId),
+      ).flat(),
+      ...tierEntries
+        .slice(perGroup)
+        .flat()
+        .map((e) => e.teamId),
+    ];
+    return {
+      format: "Knockout",
+      stage: knockoutStageName(seeds.length),
+      drawnTeams: seeds as any,
+      bracketSlots: buildBracketSlots(seeds) as any,
+    };
+  }
+
   const qualified = tierEntries.flat().map((e) => e.teamId);
   if (qualified.length < 2) {
     throw new AdvanceError("At least 2 teams must qualify");
@@ -420,10 +506,10 @@ const advanceFromGroups = (
 export const advanceDraw = async (req: Request, res: Response) => {
   try {
     const body = req.body as AdvanceBody;
-    if (body?.mode !== "groups" && body?.mode !== "knockout") {
+    if (!["groups", "playIn", "knockout"].includes(body?.mode)) {
       return res
         .status(400)
-        .json({ message: "Mode must be groups or knockout" });
+        .json({ message: "Mode must be groups, playIn or knockout" });
     }
 
     const source = await Draw.findById(req.params.id);
@@ -478,7 +564,14 @@ export const advanceDraw = async (req: Request, res: Response) => {
               standings[0].standings.map((r) => r.teamId),
               body,
             )
-          : advanceFromGroups(standings, body);
+          : advanceFromGroups(
+              standings,
+              // Play-in groups default to their own qualification zone.
+              source.directQualifiers?.length && body.mode === "knockout"
+                ? { ...body, perGroup: body.perGroup ?? source.qualifiers }
+                : body,
+              (source.directQualifiers || []).map(idOf),
+            );
     } catch (error) {
       if (error instanceof AdvanceError) {
         return res.status(400).json({ message: error.message });
@@ -489,6 +582,7 @@ export const advanceDraw = async (req: Request, res: Response) => {
     const draw = await Draw.create({
       ...next,
       event: source.event,
+      competition: source.competition,
       sport: source.sport,
       teamSize: source.teamSize,
       parentDraw: source._id,
@@ -496,10 +590,15 @@ export const advanceDraw = async (req: Request, res: Response) => {
     });
 
     // Record the qualification zone on the source table for display.
-    source.qualifiers =
-      source.format === "League"
-        ? (next.drawnTeams?.length ?? 0)
-        : Number((body as any).perGroup ?? 2);
+    if (body.mode === "playIn") {
+      source.qualifiers = body.direct;
+      source.playIn = next.drawnTeams?.length ?? 0;
+    } else {
+      source.qualifiers =
+        source.format === "League"
+          ? (next.drawnTeams?.length ?? 0)
+          : Number((body as any).perGroup ?? 2);
+    }
     await source.save();
 
     await draw.populate(DRAW_POPULATE);

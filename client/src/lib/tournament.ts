@@ -25,6 +25,8 @@ export interface Draw {
   bracketSlots?: (TeamRef | null)[];
   parentDraw?: string;
   qualifiers?: number;
+  playIn?: number;
+  directQualifiers?: TeamRef[];
   matchResults?: Record<string, string>;
   matchScores?: Record<string, string>;
   createdAt: string;
@@ -355,6 +357,20 @@ export const tieBreakLegend = (draw: Draw) => {
 /** Rows per table shown inside the qualification zone. */
 export const qualifierCount = (draw: Draw) =>
   draw.qualifiers ?? (draw.format === "Group" ? 2 : 0);
+
+/**
+ * Serpentine split of a ranked list (A B B A A B B A …). Mirrors the server,
+ * which uses it for play-in groups.
+ */
+export const serpentineGroups = <T>(ranked: T[], groupCount: number) => {
+  const groups: T[][] = Array.from({ length: groupCount }, () => []);
+  ranked.forEach((item, i) => {
+    const lap = Math.floor(i / groupCount);
+    const pos = i % groupCount;
+    groups[lap % 2 ? groupCount - 1 - pos : pos].push(item);
+  });
+  return groups;
+};
 
 /** Phase number of a draw within its parentDraw chain (1-based). */
 export const phaseNumber = (draw: Draw, all: Draw[]) => {

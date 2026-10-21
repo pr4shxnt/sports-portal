@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import User, { UserRole } from "../models/User.js";
 import Equipment from "../models/Equipment.js";
 import Event from "../models/Event.js";
-import Team from "../models/Team.js";
+import Team, { TeamType } from "../models/Team.js";
 import Responsibility, { RequestStatus } from "../models/Responsibility.js";
 import Announcement from "../models/Announcement.js";
 
@@ -31,7 +31,7 @@ export const getDashboardSummary = async (req: Request, res: Response) => {
       byRole = {
         totalUsers: User.countDocuments(),
         totalEquipment: Equipment.countDocuments(),
-        totalTeams: Team.countDocuments(),
+        totalTeams: Team.countDocuments({ teamType: { $ne: TeamType.LEAGUE } }),
         pendingRequests: Responsibility.countDocuments({
           status: RequestStatus.PENDING,
         }),
