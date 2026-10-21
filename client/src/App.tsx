@@ -197,6 +197,10 @@ const router = createBrowserRouter([
         element: <ChampionsLeaguePublic />,
       },
       {
+        path: "/champions-league/:slug/match/:matchDocId",
+        element: <ChampionsLeaguePublic />,
+      },
+      {
         path: "*",
         element: <ErrorPage />,
       },

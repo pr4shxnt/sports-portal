@@ -15,13 +15,28 @@ import {
   updateCompetition,
   updateTeam,
 } from "../controllers/competitionController.js";
+import {
+  addEvent,
+  getMatch,
+  getPublicMatch,
+  listMatches,
+  listPublicMatches,
+  openMatch,
+  removeEvent,
+  saveShootout,
+  updateMatch,
+} from "../controllers/matchController.js";
 import { protect, authorize } from "../middlewares/authMiddleware.js";
 import { UserRole } from "../models/User.js";
 import { validateBody } from "../middlewares/validateRequest.js";
 import {
   createCompetitionSchema,
   leagueTeamSchema,
+  matchEventSchema,
+  openMatchSchema,
+  shootoutSchema,
   updateCompetitionSchema,
+  updateMatchSchema,
 } from "../schemas/index.js";
 
 const router = express.Router();
@@ -29,6 +44,8 @@ const router = express.Router();
 // Public: read-only standings and bracket.
 router.get("/public", listPublic);
 router.get("/public/:slug", getPublic);
+router.get("/public/:slug/matches", listPublicMatches);
+router.get("/public/:slug/matches/:matchDocId", getPublicMatch);
 
 // Everything else is admin-only.
 router.use(protect, authorize(UserRole.ADMIN));
@@ -45,5 +62,26 @@ router.post("/:id/reset", resetCompetition);
 router.post("/:id/teams", validateBody(leagueTeamSchema), addTeam);
 router.put("/:id/teams/:teamId", validateBody(leagueTeamSchema), updateTeam);
 router.delete("/:id/teams/:teamId", removeTeam);
+
+// Match centre
+router.get("/:id/matches", listMatches);
+router.post("/:id/matches/open", validateBody(openMatchSchema), openMatch);
+router.get("/:id/matches/:matchDocId", getMatch);
+router.patch(
+  "/:id/matches/:matchDocId",
+  validateBody(updateMatchSchema),
+  updateMatch,
+);
+router.post(
+  "/:id/matches/:matchDocId/events",
+  validateBody(matchEventSchema),
+  addEvent,
+);
+router.delete("/:id/matches/:matchDocId/events/:eventId", removeEvent);
+router.put(
+  "/:id/matches/:matchDocId/shootout",
+  validateBody(shootoutSchema),
+  saveShootout,
+);
 
 export default router;

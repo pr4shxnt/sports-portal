@@ -11,6 +11,12 @@ interface KnockoutBracketProps {
   draw: Draw;
   canManage: boolean;
   onOpenMatch: OpenMatch;
+  /**
+   * Every match with both teams known can be opened, including decided ones
+   * (e.g. a match centre for viewing or reopening). Defaults to `canManage`
+   * with decided matches closed.
+   */
+  interactive?: boolean;
 }
 
 const ROUND_WIDTH = 220;
@@ -20,6 +26,7 @@ const KnockoutBracket = ({
   draw,
   canManage,
   onOpenMatch,
+  interactive,
 }: KnockoutBracketProps) => {
   const bracket = useMemo(() => buildBracket(draw), [draw]);
 
@@ -61,7 +68,10 @@ const KnockoutBracket = ({
                   const winner = bracket.winner(round, m);
                   const decided = !!draw.matchResults?.[matchId];
                   const score = draw.matchScores?.[matchId];
-                  const playable = canManage && !!home && !!away && !decided;
+                  const playable =
+                    !!home &&
+                    !!away &&
+                    (interactive ?? (canManage && !decided));
 
                   const slotLabel = (slot: 0 | 1) =>
                     bracket.isBye(round, m, slot) ? "Bye" : "TBD";
@@ -122,7 +132,7 @@ const KnockoutBracket = ({
                         )
                       }
                       className="relative group w-full text-left rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#DD1D25]/50"
-                      aria-label={`Manage ${home!.name} vs ${away!.name}`}
+                      aria-label={`${canManage ? "Manage" : "View"} ${home!.name} vs ${away!.name}`}
                     >
                       {body}
                     </button>

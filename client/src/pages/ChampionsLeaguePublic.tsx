@@ -1,12 +1,23 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import {
   type PublicCompetition,
   useGetPublicCompetitionQuery,
+  useGetPublicMatchQuery,
+  useGetPublicMatchesQuery,
   useGetPublicCompetitionsQuery,
 } from "../store/api";
 import CompetitionPhases from "../components/auth_client/champions/CompetitionPhases";
 import PlayerAvatar from "../components/auth_client/champions/PlayerAvatar";
+import FixturesList from "../components/auth_client/champions/match/FixturesList";
+import MatchTimeline from "../components/auth_client/champions/match/MatchTimeline";
+import {
+  STATUS_LABEL,
+  formatKickoff,
+  statusClass,
+} from "../components/auth_client/champions/match/eventMeta";
+import type { Fixture } from "../lib/tournament";
 import logo from "../assets/logo_main.png";
 
 const Shell = ({ children }: { children: React.ReactNode }) => (
@@ -151,9 +162,25 @@ const CompetitionList = () => {
 
 /** Read-only standings, fixtures and bracket for one season. */
 const CompetitionView = ({ slug }: { slug: string }) => {
+  const navigate = useNavigate();
   const { data, isLoading, isError } = useGetPublicCompetitionQuery(slug, {
     pollingInterval: 60_000, // Scores update during match days.
   });
+  const { data: matches = [] } = useGetPublicMatchesQuery(slug, {
+    pollingInterval: 60_000,
+  });
+  const openFixture = useCallback(
+    (drawId: string, fixture: Fixture) => {
+      const match = matches.find(
+        (m) =>
+          m.matchId === fixture.id &&
+          (typeof m.draw === "object" ? m.draw._id : m.draw) === drawId,
+      );
+      if (match) navigate(`/champions-league/${slug}/match/${match._id}`);
+      else toast("No match details yet.", { icon: "🕒" });
+    },
+    [matches, navigate, slug],
+  );
 
   if (isLoading)
     return (
@@ -207,8 +234,24 @@ const CompetitionView = ({ slug }: { slug: string }) => {
         </div>
       </header>
 
+      {matches.length > 0 && (
+        <section className="mb-12">
+          <h2 className="text-lg font-black mb-4">Fixtures & Results</h2>
+          <FixturesList
+            matches={matches}
+            onSelect={(m) =>
+              navigate(`/champions-league/${slug}/match/${m._id}`)
+            }
+          />
+        </section>
+      )}
+
       {draws.length > 0 ? (
-        <CompetitionPhases draws={draws} canManage={false} />
+        <CompetitionPhases
+          draws={draws}
+          canManage={false}
+          onOpenMatch={openFixture}
+        />
       ) : (
         <p className="text-xs text-zinc-500 mb-6">
           The league starts once registration closes. Fixtures will appear here.
@@ -223,8 +266,166 @@ const CompetitionView = ({ slug }: { slug: string }) => {
   );
 };
 
+/** One match: scoreboard, timeline, shootout and line-ups. */
+const MatchView = ({
+  slug,
+  matchDocId,
+}: {
+  slug: string;
+  matchDocId: string;
+}) => {
+  const { data, isLoading, isError } = useGetPublicMatchQuery(
+    { slug, matchDocId },
+    { pollingInterval: 30_000 },
+  );
+  const back = (
+    <Link
+      to={`/champions-league/${slug}`}
+      className="text-sm text-zinc-500 hover:text-[#DD1D25]"
+    >
+      ← Back to the league
+    </Link>
+  );
+
+  if (isLoading)
+    return (
+      <Shell>
+        <div className="h-48 rounded-2xl bg-zinc-100 dark:bg-zinc-900 animate-pulse" />
+      </Shell>
+    );
+  if (isError || !data)
+    return (
+      <Shell>
+        {back}
+        <p className="text-center py-16 text-zinc-500">Match not found.</p>
+      </Shell>
+    );
+
+  const { match, home, away } = data;
+  const [regulation, pens] = data.score.split(" (");
+  const players = new Map(data.players.map((p) => [p._id, p]));
+  const lineup = (teamId: string) =>
+    data.players.filter((p) => p.team === teamId);
+
+  return (
+    <Shell>
+      {back}
+      <header className="mt-4 p-6 sm:p-8 rounded-2xl bg-zinc-900 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-linear-to-br from-[#DD1D25]/35 via-transparent to-transparent" />
+        <div className="relative">
+          <p className="text-center text-[10px] font-black uppercase tracking-[0.25em] text-white/60">
+            {[data.stage, formatKickoff(match.kickoff), match.venue]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+          <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+            <p className="text-right text-lg sm:text-2xl font-black break-words">
+              {home.name}
+            </p>
+            <p className="text-4xl sm:text-6xl font-black tabular-nums tracking-tight">
+              {match.status === "scheduled" ? "vs" : regulation}
+            </p>
+            <p className="text-lg sm:text-2xl font-black break-words">
+              {away.name}
+            </p>
+          </div>
+          {pens && (
+            <p className="text-center text-sm text-white/80 mt-1">
+              {pens.replace(")", "")} on penalties
+            </p>
+          )}
+          <div className="flex justify-center mt-3">
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${statusClass(match.status)}`}
+            >
+              {match.forfeitedBy
+                ? `Forfeit by ${match.forfeitedBy === home._id ? home.name : away.name}`
+                : STATUS_LABEL[match.status]}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <section className="mt-8 p-4 sm:p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3">
+          Timeline
+        </h2>
+        <MatchTimeline detail={data} />
+      </section>
+
+      {match.shootout.length > 0 && (
+        <section className="mt-6 p-4 sm:p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3">
+            Penalty shootout
+          </h2>
+          <ol className="grid sm:grid-cols-2 gap-1.5 text-sm">
+            {match.shootout.map((k, i) => {
+              const p = k.player ? players.get(k.player) : undefined;
+              return (
+                <li key={k._id ?? i} className="flex items-center gap-2">
+                  <span className="w-5 text-xs text-zinc-400 tabular-nums">
+                    {i + 1}
+                  </span>
+                  <span aria-hidden="true">
+                    {k.scored ? "✅" : k.saved ? "🧤" : "❌"}
+                  </span>
+                  <span className="font-semibold truncate">
+                    {p?.name ?? (k.team === home._id ? home.name : away.name)}
+                  </span>
+                  <span className="text-xs text-zinc-400">
+                    {k.scored ? "scored" : k.saved ? "saved" : "missed"}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      )}
+
+      <section className="mt-6 grid sm:grid-cols-2 gap-4">
+        {[home, away].map((t) => (
+          <div
+            key={t._id}
+            className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800"
+          >
+            <h2 className="font-black mb-3">{t.name}</h2>
+            <ul className="space-y-2">
+              {lineup(t._id).map((p) => (
+                <li key={p._id} className="flex items-center gap-2 text-sm">
+                  <PlayerAvatar name={p.name} photo={p.photo} size={32} />
+                  <span className="w-6 text-right text-xs font-black text-zinc-400 tabular-nums">
+                    {p.shirtNumber ?? ""}
+                  </span>
+                  <span className="font-semibold truncate">{p.name}</span>
+                  {p.position === "GK" && (
+                    <span className="text-[9px] font-black text-sky-600 dark:text-sky-400">
+                      GK
+                    </span>
+                  )}
+                  {p.captaincy === "captain" && (
+                    <span className="text-[9px] font-black text-amber-600">
+                      C
+                    </span>
+                  )}
+                  {data.suspended.includes(p._id) && (
+                    <span className="ml-auto text-[9px] font-black uppercase text-red-500">
+                      Suspended
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </section>
+    </Shell>
+  );
+};
+
 const ChampionsLeaguePublic = () => {
-  const { slug } = useParams();
+  const { slug, matchDocId } = useParams();
+  if (slug && matchDocId)
+    return <MatchView slug={slug} matchDocId={matchDocId} />;
   return slug ? <CompetitionView slug={slug} /> : <CompetitionList />;
 };
 

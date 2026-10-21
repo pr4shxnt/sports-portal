@@ -232,6 +232,94 @@ export interface PublicCompetition {
   registrationOpen: boolean;
 }
 
+/* ── Match centre ── */
+
+export type MatchStatus = "scheduled" | "live" | "finished";
+export type MatchEventType =
+  "goal" | "penalty_goal" | "own_goal" | "penalty_missed" | "yellow" | "red";
+
+export interface MatchEvent {
+  _id: string;
+  type: MatchEventType;
+  team: string;
+  player?: string;
+  minute: number;
+  saved?: boolean;
+  secondYellow?: boolean;
+  causedBy?: string;
+}
+
+export interface ShootoutKick {
+  _id?: string;
+  team: string;
+  player?: string;
+  scored: boolean;
+  saved?: boolean;
+}
+
+export interface MatchRecord {
+  _id: string;
+  competition: string;
+  draw: string;
+  matchId: string;
+  home: string;
+  away: string;
+  knockout: boolean;
+  kickoff?: string;
+  venue?: string;
+  status: MatchStatus;
+  events: MatchEvent[];
+  shootout: ShootoutKick[];
+  forfeitedBy?: string | null;
+}
+
+export interface MatchDetail {
+  match: MatchRecord;
+  stage?: string;
+  home: { _id: string; name: string };
+  away: { _id: string; name: string };
+  players: (PublicPlayer & { team: string })[];
+  suspended: string[];
+  score: string;
+  needsShootout: boolean;
+  /** Winner id, "DRAW", or null while undecided. */
+  result: string | null;
+}
+
+/** Row in a fixtures list (no timeline). */
+export interface MatchSummary {
+  _id: string;
+  draw: string | { _id: string; stage?: string };
+  matchId: string;
+  home: { _id: string; name: string };
+  away: { _id: string; name: string };
+  knockout: boolean;
+  kickoff?: string;
+  venue?: string;
+  status: MatchStatus;
+  score?: string;
+  forfeitedBy?: string | null;
+}
+
+export interface OpenMatchBody {
+  drawId: string;
+  matchId: string;
+  home: string;
+  away: string;
+}
+
+export type MatchUpdate = Partial<{
+  kickoff: string | null;
+  venue: string;
+  status: MatchStatus;
+  forfeitedBy: string | null;
+}>;
+
+export type NewMatchEvent = Omit<
+  MatchEvent,
+  "_id" | "secondYellow" | "causedBy"
+>;
+
 const drawTags = (draw: { _id: string }) => [
   { type: "Draw" as const, id: draw._id },
 ];
@@ -239,7 +327,7 @@ const drawTags = (draw: { _id: string }) => [
 export const sportsApi = createApi({
   reducerPath: "sportsApi",
   baseQuery: axiosBaseQuery,
-  tagTypes: ["Event", "Team", "Draw", "RequestWindow", "Competition"],
+  tagTypes: ["Event", "Team", "Draw", "RequestWindow", "Competition", "Match"],
   // Refetch stale data when the tab regains focus or the network returns.
   refetchOnFocus: true,
   refetchOnReconnect: true,
@@ -406,6 +494,107 @@ export const sportsApi = createApi({
       }),
     }),
 
+    /* ── Match centre ── */
+    getCompetitionMatches: build.query<MatchSummary[], string>({
+      query: (id) => ({ url: `/competitions/${id}/matches` }),
+      providesTags: (_r, _e, id) => [{ type: "Match", id: `LIST-${id}` }],
+    }),
+    /** Creates the match record on first open; returns its details. */
+    openMatch: build.mutation<
+      MatchDetail,
+      { competitionId: string; body: OpenMatchBody }
+    >({
+      query: ({ competitionId, body }) => ({
+        url: `/competitions/${competitionId}/matches/open`,
+        method: "POST",
+        data: body,
+      }),
+      invalidatesTags: (_r, _e, { competitionId }) => [
+        { type: "Match", id: `LIST-${competitionId}` },
+      ],
+    }),
+    getMatchDetail: build.query<
+      MatchDetail,
+      { competitionId: string; matchDocId: string }
+    >({
+      query: ({ competitionId, matchDocId }) => ({
+        url: `/competitions/${competitionId}/matches/${matchDocId}`,
+      }),
+      providesTags: (_r, _e, { matchDocId }) => [
+        { type: "Match", id: matchDocId },
+      ],
+    }),
+    /** update | addEvent | removeEvent | shootout — all return the detail. */
+    changeMatch: build.mutation<
+      MatchDetail,
+      {
+        competitionId: string;
+        matchDocId: string;
+        update?: MatchUpdate;
+        addEvent?: NewMatchEvent;
+        removeEventId?: string;
+        shootout?: ShootoutKick[];
+      }
+    >({
+      query: ({
+        competitionId,
+        matchDocId,
+        update,
+        addEvent,
+        removeEventId,
+        shootout,
+      }) => {
+        const base = `/competitions/${competitionId}/matches/${matchDocId}`;
+        if (addEvent)
+          return { url: `${base}/events`, method: "POST", data: addEvent };
+        if (removeEventId)
+          return { url: `${base}/events/${removeEventId}`, method: "DELETE" };
+        if (shootout)
+          return {
+            url: `${base}/shootout`,
+            method: "PUT",
+            data: { kicks: shootout },
+          };
+        return { url: base, method: "PATCH", data: update };
+      },
+      // The response is the new state: write it straight into the cache.
+      async onQueryStarted(
+        { competitionId, matchDocId },
+        { dispatch, queryFulfilled },
+      ) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            sportsApi.util.upsertQueryData(
+              "getMatchDetail",
+              { competitionId, matchDocId },
+              data,
+            ),
+          );
+        } catch {
+          /* handled by the caller */
+        }
+      },
+      // Scores feed the tables/bracket held in the competition detail.
+      invalidatesTags: (_r, _e, { competitionId }) => [
+        { type: "Competition", id: competitionId },
+        { type: "Match", id: `LIST-${competitionId}` },
+      ],
+    }),
+    getPublicMatches: build.query<MatchSummary[], string>({
+      query: (slug) => ({
+        url: `/competitions/public/${encodeURIComponent(slug)}/matches`,
+      }),
+    }),
+    getPublicMatch: build.query<
+      MatchDetail,
+      { slug: string; matchDocId: string }
+    >({
+      query: ({ slug, matchDocId }) => ({
+        url: `/competitions/public/${encodeURIComponent(slug)}/matches/${matchDocId}`,
+      }),
+    }),
+
     /* ── Draws ── */
     /** Which sport/event pairs have draws — no teams, much smaller. */
     getDrawSummaries: build.query<DrawSummary[], void>({
@@ -546,6 +735,12 @@ export const {
   useRemoveLeagueTeamMutation,
   useGetPublicCompetitionsQuery,
   useGetPublicCompetitionQuery,
+  useGetCompetitionMatchesQuery,
+  useOpenMatchMutation,
+  useGetMatchDetailQuery,
+  useChangeMatchMutation,
+  useGetPublicMatchesQuery,
+  useGetPublicMatchQuery,
 } = sportsApi;
 
 /** Message from an RTK Query error (ours or a serialized one). */

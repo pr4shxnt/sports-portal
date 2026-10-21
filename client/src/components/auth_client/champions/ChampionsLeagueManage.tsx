@@ -7,12 +7,15 @@ import {
   errorMessage,
   useCompetitionActionMutation,
   useDeleteCompetitionMutation,
+  useGetCompetitionMatchesQuery,
   useGetCompetitionQuery,
   useRemoveLeagueTeamMutation,
   type LeagueTeam,
+  type OpenMatchBody,
 } from "../../../store/api";
 import { type Draw, type Fixture } from "../../../lib/tournament";
-import MatchScoreModal from "../pages/MatchScoreModal";
+import MatchCentreModal from "./match/MatchCentreModal";
+import FixturesList from "./match/FixturesList";
 import AdvancePhaseModal from "../tournament/AdvancePhaseModal";
 import CompetitionPhases from "./CompetitionPhases";
 import CompetitionFormModal from "./CompetitionFormModal";
@@ -38,16 +41,22 @@ const ChampionsLeagueManage = () => {
     null,
   );
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [selectedMatch, setSelectedMatch] = useState<{
-    drawId: string;
-    fixture: Fixture;
-    allowDraw: boolean;
-  } | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<OpenMatchBody | null>(
+    null,
+  );
+  const { data: matches = [] } = useGetCompetitionMatchesQuery(id!, {
+    skip: !id,
+  });
   const [advancingDraw, setAdvancingDraw] = useState<Draw | null>(null);
 
   const openMatch = useCallback(
-    (drawId: string, fixture: Fixture, allowDraw: boolean) =>
-      setSelectedMatch({ drawId, fixture, allowDraw }),
+    (drawId: string, fixture: Fixture) =>
+      setSelectedMatch({
+        drawId,
+        matchId: fixture.id,
+        home: fixture.home._id,
+        away: fixture.away._id,
+      }),
     [],
   );
 
@@ -134,10 +143,6 @@ const ChampionsLeagueManage = () => {
       toast.error(errorMessage(err, "Failed to delete"));
     }
   };
-
-  const selectedDraw = selectedMatch
-    ? draws.find((d) => d._id === selectedMatch.drawId)
-    : undefined;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -368,6 +373,28 @@ const ChampionsLeagueManage = () => {
         </section>
       )}
 
+      {/* Schedule */}
+      {draws.length > 0 && (
+        <section className="p-4 sm:p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+          <h2 className="text-lg font-bold mb-1">Fixtures & Results</h2>
+          <p className="text-xs text-zinc-500 mb-4">
+            Open any fixture in the tables or bracket above to schedule it and
+            record goals and cards. Scheduled matches appear here.
+          </p>
+          <FixturesList
+            matches={matches}
+            onSelect={(m) =>
+              setSelectedMatch({
+                drawId: typeof m.draw === "object" ? m.draw._id : m.draw,
+                matchId: m.matchId,
+                home: m.home._id,
+                away: m.away._id,
+              })
+            }
+          />
+        </section>
+      )}
+
       {/* Danger zone */}
       <section className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl border border-red-200 dark:border-red-900/50">
         <p className="text-xs text-zinc-500">
@@ -408,17 +435,11 @@ const ChampionsLeagueManage = () => {
         />
       )}
       {selectedMatch && (
-        <MatchScoreModal
-          isOpen
+        <MatchCentreModal
+          key={`${selectedMatch.drawId}-${selectedMatch.matchId}`}
+          competitionId={competition._id}
+          fixture={selectedMatch}
           onClose={() => setSelectedMatch(null)}
-          drawId={selectedMatch.drawId}
-          matchId={selectedMatch.fixture.id}
-          team1={selectedMatch.fixture.home}
-          team2={selectedMatch.fixture.away}
-          currentScore={
-            selectedDraw?.matchScores?.[selectedMatch.fixture.id] || ""
-          }
-          allowDraw={selectedMatch.allowDraw}
         />
       )}
       {advancingDraw && (
