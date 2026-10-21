@@ -7,12 +7,22 @@ import {
   useGetPublicMatchQuery,
   useGetPublicMatchesQuery,
   useGetPublicStatsQuery,
+  useGetPublicNewsQuery,
+  useGetPublicNewsPostQuery,
+  type NewsPost,
   useGetPublicCompetitionsQuery,
 } from "../store/api";
 import CompetitionPhases from "../components/auth_client/champions/CompetitionPhases";
 import PlayerAvatar from "../components/auth_client/champions/PlayerAvatar";
 import FixturesList from "../components/auth_client/champions/match/FixturesList";
 import StatsPanel from "../components/auth_client/champions/StatsPanel";
+import NewsCard from "../components/auth_client/champions/news/NewsCard";
+import {
+  CATEGORY_LABEL,
+  formatDate,
+  paragraphs,
+} from "../components/auth_client/champions/news/newsMeta";
+import { imageUrl } from "../lib/cloudinary";
 import MatchTimeline from "../components/auth_client/champions/match/MatchTimeline";
 import {
   STATUS_LABEL,
@@ -174,6 +184,7 @@ const CompetitionView = ({ slug }: { slug: string }) => {
   const { data: stats } = useGetPublicStatsQuery(slug, {
     pollingInterval: 120_000,
   });
+  const { data: latest } = useGetPublicNewsQuery({ slug, limit: 3 });
   const openFixture = useCallback(
     (drawId: string, fixture: Fixture) => {
       const match = matches.find(
@@ -238,6 +249,25 @@ const CompetitionView = ({ slug }: { slug: string }) => {
           )}
         </div>
       </header>
+
+      {!!latest?.posts.length && (
+        <section className="mb-12">
+          <div className="flex items-baseline justify-between mb-4">
+            <h2 className="text-lg font-black">Latest news</h2>
+            <Link
+              to={`/champions-league/${slug}/news`}
+              className="text-xs font-bold text-[#DD1D25] hover:underline"
+            >
+              All news →
+            </Link>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {latest.posts.map((post) => (
+              <NewsCard key={post._id} post={post} slug={slug} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {matches.length > 0 && (
         <section className="mb-12">
@@ -434,8 +464,199 @@ const MatchView = ({
   );
 };
 
-const ChampionsLeaguePublic = () => {
-  const { slug, matchDocId } = useParams();
+/** All published news, newest first, loaded a page at a time. */
+const NewsList = ({ slug }: { slug: string }) => {
+  const [pages, setPages] = useState<string[]>([""]);
+  return (
+    <Shell>
+      <Link
+        to={`/champions-league/${slug}`}
+        className="text-sm text-zinc-500 hover:text-[#DD1D25]"
+      >
+        ← Back to the league
+      </Link>
+      <h1 className="mt-4 mb-6 text-3xl sm:text-4xl font-black tracking-tight">
+        News
+      </h1>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {pages.map((before, i) => (
+          <NewsPage
+            key={before || "first"}
+            slug={slug}
+            before={before}
+            first={i === 0}
+            onMore={
+              i === pages.length - 1
+                ? (next) => setPages((p) => [...p, next])
+                : undefined
+            }
+          />
+        ))}
+      </div>
+    </Shell>
+  );
+};
+
+const NewsPage = ({
+  slug,
+  before,
+  first,
+  onMore,
+}: {
+  slug: string;
+  before: string;
+  first: boolean;
+  onMore?: (before: string) => void;
+}) => {
+  const { data, isLoading } = useGetPublicNewsQuery({
+    slug,
+    limit: 12,
+    before: before || undefined,
+  });
+  if (isLoading)
+    return (
+      <div className="aspect-video rounded-2xl bg-zinc-100 dark:bg-zinc-900 animate-pulse" />
+    );
+  const posts = data?.posts ?? [];
+  if (first && !posts.length)
+    return <p className="text-sm text-zinc-500 col-span-full">No news yet.</p>;
+  const last: NewsPost | undefined = posts[posts.length - 1];
+  return (
+    <>
+      {posts.map((post, i) => (
+        <NewsCard
+          key={post._id}
+          post={post}
+          slug={slug}
+          featured={first && i === 0}
+        />
+      ))}
+      {onMore && data?.hasMore && last?.publishedAt && (
+        <div className="col-span-full flex justify-center pt-2">
+          <button
+            onClick={() => onMore(last.publishedAt!)}
+            className="px-5 py-2.5 rounded-xl text-sm font-bold bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          >
+            Load more
+          </button>
+        </div>
+      )}
+    </>
+  );
+};
+
+/** One article; a linked match shows its scoreboard and timeline. */
+const Article = ({ slug, postSlug }: { slug: string; postSlug: string }) => {
+  const {
+    data: post,
+    isLoading,
+    isError,
+  } = useGetPublicNewsPostQuery({
+    slug,
+    postSlug,
+  });
+  const { data: match } = useGetPublicMatchQuery(
+    { slug, matchDocId: post?.match ?? "" },
+    { skip: !post?.match },
+  );
+  const back = (
+    <Link
+      to={`/champions-league/${slug}/news`}
+      className="text-sm text-zinc-500 hover:text-[#DD1D25]"
+    >
+      ← All news
+    </Link>
+  );
+
+  if (isLoading)
+    return (
+      <Shell>
+        <div className="aspect-video rounded-2xl bg-zinc-100 dark:bg-zinc-900 animate-pulse" />
+      </Shell>
+    );
+  if (isError || !post)
+    return (
+      <Shell>
+        {back}
+        <p className="text-center py-16 text-zinc-500">Article not found.</p>
+      </Shell>
+    );
+
+  return (
+    <Shell>
+      {back}
+      <article className="mt-4 max-w-3xl mx-auto">
+        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#DD1D25]">
+          {CATEGORY_LABEL[post.category]}
+          <span className="text-zinc-400">
+            {" "}
+            · {formatDate(post.publishedAt)}
+          </span>
+        </p>
+        <h1 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight leading-tight break-words">
+          {post.title}
+        </h1>
+        {post.summary && (
+          <p className="mt-3 text-lg text-zinc-500">{post.summary}</p>
+        )}
+        {post.cover && (
+          <img
+            src={imageUrl(post.cover.url, 1600, 900)}
+            alt=""
+            className="mt-6 w-full aspect-video object-cover rounded-2xl"
+          />
+        )}
+
+        {match && (
+          <Link
+            to={`/champions-league/${slug}/match/${match.match._id}`}
+            className="mt-6 block p-4 rounded-2xl bg-zinc-900 text-white hover:ring-2 hover:ring-[#DD1D25]/60 transition-shadow"
+          >
+            <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/60">
+              {[match.stage, STATUS_LABEL[match.match.status]]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+            <div className="mt-1 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+              <span className="text-right font-black truncate">
+                {match.home.name}
+              </span>
+              <span className="text-2xl font-black tabular-nums">
+                {match.score.split(" (")[0]}
+              </span>
+              <span className="font-black truncate">{match.away.name}</span>
+            </div>
+            <p className="text-center text-[11px] text-white/60 mt-1">
+              Match centre →
+            </p>
+          </Link>
+        )}
+
+        <div className="mt-8 space-y-5 text-base leading-relaxed text-zinc-800 dark:text-zinc-200">
+          {paragraphs(post.body).map((p, i) => (
+            <p key={i} className="whitespace-pre-line">
+              {p}
+            </p>
+          ))}
+        </div>
+
+        {match && match.match.events.length > 0 && (
+          <section className="mt-10 p-4 sm:p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3">
+              Match timeline
+            </h2>
+            <MatchTimeline detail={match} />
+          </section>
+        )}
+      </article>
+    </Shell>
+  );
+};
+
+const ChampionsLeaguePublic = ({ view }: { view?: "news" }) => {
+  const { slug, matchDocId, postSlug } = useParams();
+  if (slug && postSlug) return <Article slug={slug} postSlug={postSlug} />;
+  if (slug && view === "news") return <NewsList slug={slug} />;
   if (slug && matchDocId)
     return <MatchView slug={slug} matchDocId={matchDocId} />;
   return slug ? <CompetitionView slug={slug} /> : <CompetitionList />;

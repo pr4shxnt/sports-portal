@@ -126,6 +126,24 @@ export const leagueTeamSchema = z.object({
   players: z.array(leaguePlayer).max(30).optional(),
 });
 
+/* ── News ── */
+
+const newsFields = {
+  title: z.string().trim().min(3, "Title is required").max(140),
+  category: z.enum(["match_report", "announcement", "feature"]).optional(),
+  summary: z.string().trim().max(300).optional(),
+  body: z.string().max(20000).optional(),
+  status: z.enum(["draft", "published"]).optional(),
+  cover: z
+    .object({ url: z.string().url(), publicId: z.string().min(1) })
+    .nullable()
+    .optional(),
+  match: objectId.nullable().optional(),
+};
+
+export const createNewsSchema = z.object(newsFields);
+export const updateNewsSchema = z.object(newsFields).partial();
+
 /* ── Match centre ── */
 
 export const openMatchSchema = z.object({
