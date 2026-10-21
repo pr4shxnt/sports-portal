@@ -27,6 +27,8 @@ interface MatchCentreModalProps {
   competitionId: string;
   fixture: OpenMatchBody;
   onClose: () => void;
+  /** Offered once the match is finished. */
+  onWriteReport?: (detail: MatchDetail) => void;
 }
 
 const EVENT_TYPES: MatchEventType[] = [
@@ -57,6 +59,7 @@ const MatchCentreModal = ({
   competitionId,
   fixture,
   onClose,
+  onWriteReport,
 }: MatchCentreModalProps) => {
   const [open, { data: opened, error: openError }] = useOpenMatchMutation();
   const requested = useRef(false);
@@ -80,7 +83,11 @@ const MatchCentreModal = ({
       size="xl"
     >
       {detail ? (
-        <MatchCentre competitionId={competitionId} detail={detail} />
+        <MatchCentre
+          competitionId={competitionId}
+          detail={detail}
+          onWriteReport={onWriteReport}
+        />
       ) : openError ? (
         <p className="text-sm text-red-500">
           {errorMessage(openError, "Couldn't open this match")}
@@ -95,9 +102,11 @@ const MatchCentreModal = ({
 const MatchCentre = ({
   competitionId,
   detail,
+  onWriteReport,
 }: {
   competitionId: string;
   detail: MatchDetail;
+  onWriteReport?: (detail: MatchDetail) => void;
 }) => {
   const { match, home, away } = detail;
   const [change, { isLoading: saving }] = useChangeMatchMutation();
@@ -486,6 +495,15 @@ const MatchCentre = ({
               className="px-4 py-2 rounded-lg text-xs font-bold bg-[#DD1D25] text-white hover:bg-[#C41920] disabled:opacity-40"
             >
               Full time
+            </button>
+          )}
+          {finished && onWriteReport && (
+            <button
+              type="button"
+              onClick={() => onWriteReport(detail)}
+              className="px-4 py-2 rounded-lg text-xs font-bold bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+            >
+              Write match report
             </button>
           )}
           {finished && !match.forfeitedBy && (

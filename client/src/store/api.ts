@@ -317,6 +317,33 @@ export type MatchUpdate = Partial<{
   goalkeepers: { home?: string | null; away?: string | null };
 }>;
 
+/* ── News ── */
+
+export type NewsCategory = "match_report" | "announcement" | "feature";
+
+export interface NewsPost {
+  _id: string;
+  title: string;
+  slug: string;
+  category: NewsCategory;
+  summary?: string;
+  /** Only on single-post responses. */
+  body?: string;
+  cover?: { url: string; publicId: string };
+  match?: string | null;
+  status: "draft" | "published";
+  publishedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NewsInput = Partial<
+  Pick<NewsPost, "title" | "category" | "summary" | "body" | "status">
+> & {
+  cover?: { url: string; publicId: string } | null;
+  match?: string | null;
+};
+
 /* ── Stats ── */
 
 export interface LeagueStats {
@@ -391,6 +418,7 @@ export const sportsApi = createApi({
     "Competition",
     "Match",
     "Stats",
+    "News",
   ],
   // Refetch stale data when the tab regains focus or the network returns.
   refetchOnFocus: true,
@@ -646,6 +674,66 @@ export const sportsApi = createApi({
         { type: "Stats", id: competitionId },
       ],
     }),
+    /* ── News ── */
+    getCompetitionNews: build.query<NewsPost[], string>({
+      query: (id) => ({ url: `/competitions/${id}/news` }),
+      providesTags: (_r, _e, id) => [{ type: "News", id: `LIST-${id}` }],
+    }),
+    getNewsPost: build.query<
+      NewsPost,
+      { competitionId: string; postId: string }
+    >({
+      query: ({ competitionId, postId }) => ({
+        url: `/competitions/${competitionId}/news/${postId}`,
+      }),
+      providesTags: (_r, _e, { postId }) => [{ type: "News", id: postId }],
+    }),
+    saveNewsPost: build.mutation<
+      NewsPost,
+      { competitionId: string; postId?: string; data: NewsInput }
+    >({
+      query: ({ competitionId, postId, data }) => ({
+        url: postId
+          ? `/competitions/${competitionId}/news/${postId}`
+          : `/competitions/${competitionId}/news`,
+        method: postId ? "PUT" : "POST",
+        data,
+      }),
+      invalidatesTags: (r, _e, { competitionId }) => [
+        { type: "News", id: `LIST-${competitionId}` },
+        ...(r ? [{ type: "News" as const, id: r._id }] : []),
+      ],
+    }),
+    deleteNewsPost: build.mutation<
+      { message: string },
+      { competitionId: string; postId: string }
+    >({
+      query: ({ competitionId, postId }) => ({
+        url: `/competitions/${competitionId}/news/${postId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_r, _e, { competitionId }) => [
+        { type: "News", id: `LIST-${competitionId}` },
+      ],
+    }),
+    getPublicNews: build.query<
+      { posts: NewsPost[]; hasMore: boolean },
+      { slug: string; limit?: number; before?: string }
+    >({
+      query: ({ slug, limit, before }) => ({
+        url: `/competitions/public/${encodeURIComponent(slug)}/news`,
+        params: { limit, before },
+      }),
+    }),
+    getPublicNewsPost: build.query<
+      NewsPost,
+      { slug: string; postSlug: string }
+    >({
+      query: ({ slug, postSlug }) => ({
+        url: `/competitions/public/${encodeURIComponent(slug)}/news/${encodeURIComponent(postSlug)}`,
+      }),
+    }),
+
     getCompetitionStats: build.query<LeagueStats, string>({
       query: (id) => ({ url: `/competitions/${id}/stats` }),
       providesTags: (_r, _e, id) => [{ type: "Stats", id }],
@@ -817,6 +905,12 @@ export const {
   useGetPublicMatchQuery,
   useGetCompetitionStatsQuery,
   useGetPublicStatsQuery,
+  useGetCompetitionNewsQuery,
+  useGetNewsPostQuery,
+  useSaveNewsPostMutation,
+  useDeleteNewsPostMutation,
+  useGetPublicNewsQuery,
+  useGetPublicNewsPostQuery,
 } = sportsApi;
 
 /** Message from an RTK Query error (ours or a serialized one). */

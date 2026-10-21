@@ -9,15 +9,19 @@ import {
   useDeleteCompetitionMutation,
   useGetCompetitionMatchesQuery,
   useGetCompetitionStatsQuery,
+  useGetCompetitionNewsQuery,
   useGetCompetitionQuery,
   useRemoveLeagueTeamMutation,
   type LeagueTeam,
+  type NewsInput,
   type OpenMatchBody,
 } from "../../../store/api";
 import { type Draw, type Fixture } from "../../../lib/tournament";
 import MatchCentreModal from "./match/MatchCentreModal";
 import FixturesList from "./match/FixturesList";
 import StatsPanel from "./StatsPanel";
+import NewsEditorModal from "./news/NewsEditorModal";
+import { CATEGORY_LABEL, formatDate, matchReportDraft } from "./news/newsMeta";
 import AdvancePhaseModal from "../tournament/AdvancePhaseModal";
 import CompetitionPhases from "./CompetitionPhases";
 import CompetitionFormModal from "./CompetitionFormModal";
@@ -50,6 +54,11 @@ const ChampionsLeagueManage = () => {
     skip: !id,
   });
   const { data: stats } = useGetCompetitionStatsQuery(id!, { skip: !id });
+  const { data: news = [] } = useGetCompetitionNewsQuery(id!, { skip: !id });
+  const [editingPost, setEditingPost] = useState<{
+    postId?: string;
+    prefill?: NewsInput;
+  } | null>(null);
   const [advancingDraw, setAdvancingDraw] = useState<Draw | null>(null);
 
   const openMatch = useCallback(
@@ -398,6 +407,69 @@ const ChampionsLeagueManage = () => {
         </section>
       )}
 
+      {/* News */}
+      <section className="p-4 sm:p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-lg font-bold">News</h2>
+            <p className="text-xs text-zinc-500">
+              Announcements and match reports for the public page. Finished
+              matches have a “Write match report” button in the match centre.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <a
+              href={`/champions-league/${competition.formSlug}/news`}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+            >
+              Public news ↗
+            </a>
+            <button
+              onClick={() => setEditingPost({})}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#DD1D25] text-white hover:bg-[#C41920]"
+            >
+              + New post
+            </button>
+          </div>
+        </div>
+        {news.length === 0 ? (
+          <p className="text-sm text-zinc-500">No posts yet.</p>
+        ) : (
+          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            {news.map((post) => (
+              <li key={post._id}>
+                <button
+                  onClick={() => setEditingPost({ postId: post._id })}
+                  className="w-full flex items-center gap-3 py-3 text-left group"
+                >
+                  <span
+                    className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${post.status === "published" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400" : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"}`}
+                  >
+                    {post.status === "published" ? "Live" : "Draft"}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-bold truncate group-hover:text-[#DD1D25]">
+                      {post.title}
+                    </span>
+                    <span className="block text-[11px] text-zinc-500">
+                      {CATEGORY_LABEL[post.category]} ·{" "}
+                      {post.status === "published"
+                        ? `Published ${formatDate(post.publishedAt)}`
+                        : `Edited ${formatDate(post.updatedAt)}`}
+                    </span>
+                  </span>
+                  <span className="text-xs font-bold text-zinc-400 group-hover:text-[#DD1D25]">
+                    Edit
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {/* Stats */}
       {stats && stats.matchesPlayed + stats.goldenBoot.length > 0 && (
         <section className="p-4 sm:p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
@@ -438,6 +510,17 @@ const ChampionsLeagueManage = () => {
           onClose={() => setEditingDetails(false)}
         />
       )}
+      {editingPost && (
+        <NewsEditorModal
+          key={editingPost.postId ?? "new"}
+          competitionId={competition._id}
+          competitionSlug={competition.formSlug}
+          postId={editingPost.postId}
+          prefill={editingPost.prefill}
+          matches={matches}
+          onClose={() => setEditingPost(null)}
+        />
+      )}
       {editingTeam && (
         <TeamEditorModal
           competitionId={competition._id}
@@ -451,6 +534,10 @@ const ChampionsLeagueManage = () => {
           competitionId={competition._id}
           fixture={selectedMatch}
           onClose={() => setSelectedMatch(null)}
+          onWriteReport={(detail) => {
+            setSelectedMatch(null);
+            setEditingPost({ prefill: matchReportDraft(detail) });
+          }}
         />
       )}
       {advancingDraw && (

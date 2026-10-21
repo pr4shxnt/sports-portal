@@ -12,6 +12,8 @@ import FormSubmission, {
 import Team, { TeamType } from "../models/Team.js";
 import Player, { IPlayer } from "../models/Player.js";
 import Match from "../models/Match.js";
+import NewsPost from "../models/NewsPost.js";
+import { deleteCompetitionNews } from "./newsController.js";
 import { shuffle } from "../utils/tournament.js";
 import { destroyImage, isOwnImage } from "../utils/cloudinary.js";
 import { teamFromSubmission } from "../utils/submissionTeam.js";
@@ -449,6 +451,7 @@ export const deleteCompetition = handle(async (req, res) => {
     Draw.deleteMany({ competition: competition._id }),
     Match.deleteMany({ competition: competition._id }),
     deleteTeams({ competition: competition._id }),
+    deleteCompetitionNews(competition._id),
   ]);
   await competition.deleteOne();
   res.json({ message: "Competition deleted" });
@@ -610,6 +613,8 @@ export const resetCompetition = handle(async (req, res) => {
   await Promise.all([
     Draw.deleteMany({ competition: competition._id }),
     Match.deleteMany({ competition: competition._id }),
+    // Posts survive a reset; their match links don't.
+    NewsPost.updateMany({ competition: competition._id }, { match: null }),
   ]);
   competition.status = CompetitionStatus.SETUP;
   await competition.save();

@@ -44,18 +44,24 @@ export const uploadImage = async (
  * Resized, auto-format/quality variant of a Cloudinary image, e.g.
  * imageUrl(url, 96) → square face-centred thumbnail. Other URLs pass through.
  */
-export const imageUrl = (url: string | undefined, size: number) => {
+export const imageUrl = (
+  url: string | undefined,
+  size: number,
+  /** Height for non-square images (e.g. 16:9 news covers). */
+  height = size,
+) => {
   if (!url) return undefined;
   const marker = "/image/upload/";
   const i = url.indexOf(marker);
   if (i === -1 || !url.includes("res.cloudinary.com")) return url;
-  const t = `c_fill,g_face,w_${size},h_${size},f_auto,q_auto`;
+  const gravity = height === size ? "g_face" : "g_auto";
+  const t = `c_fill,${gravity},w_${size},h_${height},f_auto,q_auto`;
   return (
     url.slice(0, i + marker.length) + t + "/" + url.slice(i + marker.length)
   );
 };
 
-/** Crops `src` to `area` and returns a square JPEG of at most `max` px. */
+/** Crops `src` to `area` and returns a JPEG at most `max` px wide. */
 export const cropToBlob = async (
   src: string,
   area: { x: number; y: number; width: number; height: number },
@@ -67,10 +73,11 @@ export const cropToBlob = async (
     img.onerror = reject;
     img.src = src;
   });
-  const size = Math.min(max, Math.round(area.width));
+  const width = Math.min(max, Math.round(area.width));
+  const height = Math.round((width * area.height) / area.width);
   const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = width;
+  canvas.height = height;
   canvas
     .getContext("2d")!
     .drawImage(
@@ -81,8 +88,8 @@ export const cropToBlob = async (
       area.height,
       0,
       0,
-      size,
-      size,
+      width,
+      height,
     );
   return new Promise((resolve, reject) =>
     canvas.toBlob(

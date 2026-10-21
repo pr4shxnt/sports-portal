@@ -28,11 +28,22 @@ import {
   saveShootout,
   updateMatch,
 } from "../controllers/matchController.js";
+import {
+  createNews,
+  deleteNews,
+  getNews,
+  getPublicNews,
+  listNews,
+  listPublicNews,
+  updateNews,
+} from "../controllers/newsController.js";
 import { protect, authorize } from "../middlewares/authMiddleware.js";
 import { UserRole } from "../models/User.js";
 import { validateBody } from "../middlewares/validateRequest.js";
 import {
   createCompetitionSchema,
+  createNewsSchema,
+  updateNewsSchema,
   leagueTeamSchema,
   matchEventSchema,
   openMatchSchema,
@@ -49,6 +60,8 @@ router.get("/public/:slug", getPublic);
 router.get("/public/:slug/matches", listPublicMatches);
 router.get("/public/:slug/matches/:matchDocId", getPublicMatch);
 router.get("/public/:slug/stats", getPublicStats);
+router.get("/public/:slug/news", listPublicNews);
+router.get("/public/:slug/news/:postSlug", getPublicNews);
 
 // Everything else is admin-only.
 router.use(protect, authorize(UserRole.ADMIN));
@@ -65,6 +78,13 @@ router.post("/:id/reset", resetCompetition);
 router.post("/:id/teams", validateBody(leagueTeamSchema), addTeam);
 router.put("/:id/teams/:teamId", validateBody(leagueTeamSchema), updateTeam);
 router.delete("/:id/teams/:teamId", removeTeam);
+
+// News
+router.get("/:id/news", listNews);
+router.post("/:id/news", validateBody(createNewsSchema), createNews);
+router.get("/:id/news/:postId", getNews);
+router.put("/:id/news/:postId", validateBody(updateNewsSchema), updateNews);
+router.delete("/:id/news/:postId", deleteNews);
 
 // Match centre
 router.get("/:id/stats", getStats);
