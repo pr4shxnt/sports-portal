@@ -92,12 +92,14 @@ const CompetitionPhases = ({
               <KnockoutBracket
                 draw={draw}
                 canManage={canManage}
+                interactive={!!onOpenMatch}
                 onOpenMatch={handlers[draw._id]}
               />
             ) : (
               <TableStage
                 draw={draw}
                 canManage={canManage}
+                interactive={!!onOpenMatch}
                 onOpenMatch={handlers[draw._id]}
               />
             )}

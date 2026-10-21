@@ -20,6 +20,8 @@ interface TableStageProps {
   draw: Draw;
   canManage: boolean;
   onOpenMatch: OpenMatch;
+  /** Fixtures are clickable even without manage rights (view a match). */
+  interactive?: boolean;
 }
 
 const StandingsTable = ({
@@ -130,11 +132,13 @@ const FixtureRow = ({
   fixture,
   draw,
   canManage,
+  clickable,
   onOpen,
 }: {
   fixture: Fixture;
   draw: Draw;
   canManage: boolean;
+  clickable: boolean;
   onOpen: () => void;
 }) => {
   const score = draw.matchScores?.[fixture.id];
@@ -175,12 +179,12 @@ const FixtureRow = ({
 
   const base = `w-full flex items-center gap-2 p-2.5 rounded-xl border text-xs transition-colors ${result ? "border-zinc-200 dark:border-zinc-700/50 bg-white dark:bg-zinc-900" : "border-dashed border-zinc-200 dark:border-zinc-700"}`;
 
-  return canManage ? (
+  return clickable ? (
     <button
       type="button"
       onClick={onOpen}
       className={`${base} hover:border-[#DD1D25]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#DD1D25]/40`}
-      aria-label={`Manage ${fixture.home.name} vs ${fixture.away.name}`}
+      aria-label={`${canManage ? "Manage" : "View"} ${fixture.home.name} vs ${fixture.away.name}`}
     >
       {content}
     </button>
@@ -193,12 +197,14 @@ const Matchdays = ({
   table,
   draw,
   canManage,
+  clickable,
   onOpenMatch,
   paged,
 }: {
   table: Table;
   draw: Draw;
   canManage: boolean;
+  clickable: boolean;
   onOpenMatch: OpenMatch;
   paged: boolean;
 }) => {
@@ -256,6 +262,7 @@ const Matchdays = ({
                 fixture={fixture}
                 draw={draw}
                 canManage={canManage}
+                clickable={clickable}
                 onOpen={() => onOpenMatch(fixture, true)}
               />
             ))}
@@ -280,7 +287,12 @@ const Progress = ({ played, total }: { played: number; total: number }) => (
   </div>
 );
 
-const TableStage = ({ draw, canManage, onOpenMatch }: TableStageProps) => {
+const TableStage = ({
+  draw,
+  canManage,
+  onOpenMatch,
+  interactive,
+}: TableStageProps) => {
   const isLeague = draw.format === "League";
   const tables = useMemo(() => tablesOf(draw), [draw]);
   const standings = useMemo(
@@ -358,6 +370,7 @@ const TableStage = ({ draw, canManage, onOpenMatch }: TableStageProps) => {
                 table={table}
                 draw={draw}
                 canManage={canManage}
+                clickable={interactive ?? canManage}
                 onOpenMatch={onOpenMatch}
                 paged={isLeague}
               />

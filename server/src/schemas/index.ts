@@ -125,3 +125,47 @@ export const leagueTeamSchema = z.object({
   name: z.string().trim().min(1, "Team name is required").max(80),
   players: z.array(leaguePlayer).max(30).optional(),
 });
+
+/* ── Match centre ── */
+
+export const openMatchSchema = z.object({
+  drawId: objectId,
+  matchId: z.string().min(1).max(200),
+  home: objectId,
+  away: objectId,
+});
+
+export const updateMatchSchema = z.object({
+  kickoff: z.string().datetime({ offset: true }).nullable().optional(),
+  venue: z.string().trim().max(120).optional(),
+  status: z.enum(["scheduled", "live", "finished"]).optional(),
+  forfeitedBy: objectId.nullable().optional(),
+});
+
+export const matchEventSchema = z.object({
+  type: z.enum([
+    "goal",
+    "penalty_goal",
+    "own_goal",
+    "penalty_missed",
+    "yellow",
+    "red",
+  ]),
+  team: objectId,
+  player: objectId.optional(),
+  minute: z.number().int().min(1).max(50),
+  saved: z.boolean().optional(),
+});
+
+export const shootoutSchema = z.object({
+  kicks: z
+    .array(
+      z.object({
+        team: objectId,
+        player: objectId.optional(),
+        scored: z.boolean(),
+        saved: z.boolean().optional(),
+      }),
+    )
+    .max(60),
+});

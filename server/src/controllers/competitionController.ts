@@ -11,6 +11,7 @@ import FormSubmission, {
 } from "../models/FormSubmission.js";
 import Team, { TeamType } from "../models/Team.js";
 import Player, { IPlayer } from "../models/Player.js";
+import Match from "../models/Match.js";
 import { shuffle } from "../utils/tournament.js";
 import { destroyImage, isOwnImage } from "../utils/cloudinary.js";
 import { teamFromSubmission } from "../utils/submissionTeam.js";
@@ -446,6 +447,7 @@ export const deleteCompetition = handle(async (req, res) => {
   const competition = await findCompetition(req.params.id);
   await Promise.all([
     Draw.deleteMany({ competition: competition._id }),
+    Match.deleteMany({ competition: competition._id }),
     deleteTeams({ competition: competition._id }),
   ]);
   await competition.deleteOne();
@@ -531,6 +533,21 @@ export const updateTeam = handle(async (req, res) => {
       };
     });
     const removed = existing.filter((p) => !kept.has(p._id.toString()));
+    const removedIds = removed.map((p) => p._id);
+    if (
+      removedIds.length &&
+      (await Match.exists({
+        $or: [
+          { "events.player": { $in: removedIds } },
+          { "shootout.player": { $in: removedIds } },
+        ],
+      }))
+    ) {
+      throw new HttpError(
+        400,
+        "A player you removed already has goals or cards in a match. Remove those events first.",
+      );
+    }
     removed.forEach((p) => replacedPhotos.push(p.photo?.publicId));
 
     if (writes.length) await Player.bulkWrite(writes as any);
@@ -590,7 +607,10 @@ export const startLeague = handle(async (req, res) => {
 // @access  Admin
 export const resetCompetition = handle(async (req, res) => {
   const competition = await findCompetition(req.params.id);
-  await Draw.deleteMany({ competition: competition._id });
+  await Promise.all([
+    Draw.deleteMany({ competition: competition._id }),
+    Match.deleteMany({ competition: competition._id }),
+  ]);
   competition.status = CompetitionStatus.SETUP;
   await competition.save();
   res.json(await detail(competition));
