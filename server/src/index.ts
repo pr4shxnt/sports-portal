@@ -60,6 +60,8 @@ import formRoutes from "./routes/formRoutes.js";
 import drawRoutes from "./routes/drawRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import meetingRoutes from "./routes/meetingRoutes.js";
+import competitionRoutes from "./routes/competitionRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -74,6 +76,8 @@ app.use("/api/forms", formRoutes);
 app.use("/api/draws", drawRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/meetings", meetingRoutes);
+app.use("/api/competitions", competitionRoutes);
+app.use("/api/uploads", uploadRoutes);
 
 // Error Handling
 app.use(errorHandler);

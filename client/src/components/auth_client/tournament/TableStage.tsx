@@ -25,10 +25,12 @@ interface TableStageProps {
 const StandingsTable = ({
   rows,
   qualifiers,
+  playIn = 0,
   showDraws,
 }: {
   rows: StandingRow[];
   qualifiers: number;
+  playIn?: number;
   showDraws: boolean;
 }) => {
   const cols: { key: keyof StandingRow; label: string; wide?: boolean }[] = [
@@ -64,6 +66,7 @@ const StandingsTable = ({
         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
           {rows.map((row, i) => {
             const qualified = i < qualifiers;
+            const inPlayIn = !qualified && i < qualifiers + playIn;
             // Dashed line under the last qualifying row (the "cut").
             const cut =
               qualifiers > 0 && i === qualifiers - 1 && i < rows.length - 1
@@ -80,7 +83,7 @@ const StandingsTable = ({
               >
                 <td className={`py-2 pl-1 ${cut}`}>
                   <span
-                    className={`inline-flex w-5 h-5 items-center justify-center rounded text-[10px] font-black ${qualified ? "bg-[#DD1D25] text-white" : "text-zinc-400"}`}
+                    className={`inline-flex w-5 h-5 items-center justify-center rounded text-[10px] font-black ${qualified ? "bg-[#DD1D25] text-white" : inPlayIn ? "bg-amber-400 text-amber-950" : "text-zinc-400"}`}
                   >
                     {i + 1}
                   </span>
@@ -294,6 +297,16 @@ const TableStage = ({ draw, canManage, onOpenMatch }: TableStageProps) => {
 
   return (
     <div className="space-y-6">
+      {!!draw.directQualifiers?.length && (
+        <div className="px-4 py-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/10 border border-zinc-100 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-300">
+          <span className="font-black uppercase tracking-wider text-[10px] text-[#DD1D25] mr-2">
+            Already in the knockout
+          </span>
+          {draw.directQualifiers
+            .map((t, i) => `${i + 1}. ${t.name}`)
+            .join(" · ")}
+        </div>
+      )}
       {tables.map((table, ti) => (
         <section
           key={table.name}
@@ -314,6 +327,7 @@ const TableStage = ({ draw, canManage, onOpenMatch }: TableStageProps) => {
               <StandingsTable
                 rows={standings[ti]}
                 qualifiers={qualifiers}
+                playIn={draw.playIn}
                 showDraws={showDraws}
               />
               <p className="text-[10px] text-zinc-400 mt-3 leading-relaxed">
@@ -322,6 +336,12 @@ const TableStage = ({ draw, canManage, onOpenMatch }: TableStageProps) => {
                     <span className="inline-block w-2 h-2 rounded-sm bg-[#DD1D25] mr-1 align-middle" />
                     Top {qualifiers} {draw.qualifiers ? "qualified" : "advance"}{" "}
                     ·{" "}
+                  </>
+                )}
+                {!!draw.playIn && (
+                  <>
+                    <span className="inline-block w-2 h-2 rounded-sm bg-amber-400 mr-1 align-middle" />
+                    Next {draw.playIn} to qualifiers ·{" "}
                   </>
                 )}
                 {pointsLegend(draw)} · {tieBreakLegend(draw)}

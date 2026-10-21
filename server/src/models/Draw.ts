@@ -9,7 +9,8 @@ export const DRAW_FORMATS = ["Group", "Knockout", "League"] as const;
 export type DrawFormat = (typeof DRAW_FORMATS)[number];
 
 export interface IDraw extends Document {
-  event: mongoose.Types.ObjectId;
+  event?: mongoose.Types.ObjectId; // Event draws
+  competition?: mongoose.Types.ObjectId; // Champions League draws (no event)
   format: DrawFormat;
   stage?: string; // Display label, e.g. "League Phase", "Round of 16"
   sport: string;
@@ -22,6 +23,10 @@ export interface IDraw extends Document {
   bracketSlots?: (mongoose.Types.ObjectId | null)[];
   parentDraw?: mongoose.Types.ObjectId; // Phase this draw advanced from
   qualifiers?: number; // Rows per table highlighted as qualified
+  playIn?: number; // League rows after `qualifiers` sent to a play-in phase
+  // Play-in phase: teams that skipped it (seed order) and join the knockout
+  // ahead of the play-in qualifiers.
+  directQualifiers?: mongoose.Types.ObjectId[];
   matchResults?: Record<string, string>; // matchId -> teamId (winner) | "DRAW"
   matchScores?: Record<string, string>; // matchId -> score (e.g. "2 - 1")
   createdBy?: mongoose.Types.ObjectId;
@@ -41,8 +46,11 @@ const DrawSchema: Schema = new Schema(
     event: {
       type: Schema.Types.ObjectId,
       ref: "Event",
-      required: true,
+      required: function (this: IDraw) {
+        return !this.competition;
+      },
     },
+    competition: { type: Schema.Types.ObjectId, ref: "Competition" },
     format: {
       type: String,
       enum: DRAW_FORMATS,
@@ -73,6 +81,11 @@ const DrawSchema: Schema = new Schema(
     },
     parentDraw: { type: Schema.Types.ObjectId, ref: "Draw" },
     qualifiers: { type: Number },
+    playIn: { type: Number },
+    directQualifiers: {
+      type: [{ type: Schema.Types.ObjectId, ref: "Team" }],
+      default: undefined,
+    },
     matchResults: {
       type: Map,
       of: String,
@@ -94,6 +107,7 @@ const DrawSchema: Schema = new Schema(
 // Indexes
 DrawSchema.index({ event: 1, createdAt: -1 });
 DrawSchema.index({ parentDraw: 1 });
+DrawSchema.index({ competition: 1, createdAt: 1 });
 DrawSchema.index({ createdAt: -1 });
 
 export default mongoose.model<IDraw>("Draw", DrawSchema);

@@ -23,6 +23,12 @@ export default function Navbar() {
         <Link to="/events" className="hover:text-white transition-colors">
           Events
         </Link>
+        <Link
+          to="/champions-league"
+          className="hover:text-white transition-colors"
+        >
+          Champions League
+        </Link>
         <a href="#about" className="hover:text-white transition-colors">
           About
         </a>

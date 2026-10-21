@@ -242,6 +242,21 @@ export const drawGroupsFromPots = (ranked: string[], groupCount: number) => {
 };
 
 /**
+ * Serpentine split of a ranked list: with 2 groups, ranks go A B B A A B B A,
+ * so group strength is balanced and deterministic (no random draw). Each
+ * group keeps rank order, which makes original rank the final tie-breaker.
+ */
+export const serpentineGroups = (ranked: string[], groupCount: number) => {
+  const groups: string[][] = Array.from({ length: groupCount }, () => []);
+  ranked.forEach((teamId, i) => {
+    const lap = Math.floor(i / groupCount);
+    const pos = i % groupCount;
+    groups[lap % 2 ? groupCount - 1 - pos : pos].push(teamId);
+  });
+  return groups.map((teams, i) => ({ name: groupLetter(i), teams }));
+};
+
+/**
  * Builds bracket slots from seed tiers, re-drawing within each tier until no
  * first-round tie pairs two teams from the same group (when avoidable).
  */

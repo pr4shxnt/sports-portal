@@ -4,6 +4,7 @@ export const TeamType = {
   EVENT: "event", // Tournament/competition teams
   GENERAL: "general", // Club organizational structure
   MEMBER: "member", // Initial club registration
+  LEAGUE: "league", // Champions League teams, managed only in that section
 } as const;
 
 export type TeamType = (typeof TeamType)[keyof typeof TeamType];
@@ -13,6 +14,7 @@ export interface ITeam extends Document {
   sport: string;
   teamType: TeamType;
   event?: mongoose.Types.ObjectId; // Reference to Event for event teams
+  competition?: mongoose.Types.ObjectId; // Champions League this team plays in
   coach?: string;
   executive?: Schema.Types.ObjectId;
   members: Schema.Types.ObjectId[];
@@ -32,6 +34,10 @@ const TeamSchema: Schema = new Schema(
     event: {
       type: Schema.Types.ObjectId,
       ref: "Event",
+    },
+    competition: {
+      type: Schema.Types.ObjectId,
+      ref: "Competition",
     },
     coach: { type: String },
     executive: { type: Schema.Types.ObjectId, ref: "User" },
@@ -66,6 +72,22 @@ TeamSchema.index(
     unique: true,
     partialFilterExpression: { teamType: TeamType.EVENT },
   },
+);
+
+// One team per approved application, and unique names, per competition.
+TeamSchema.index(
+  { competition: 1, formSubmission: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      teamType: TeamType.LEAGUE,
+      formSubmission: { $exists: true },
+    },
+  },
+);
+TeamSchema.index(
+  { name: 1, competition: 1 },
+  { unique: true, partialFilterExpression: { teamType: TeamType.LEAGUE } },
 );
 
 export default mongoose.model<ITeam>("Team", TeamSchema);

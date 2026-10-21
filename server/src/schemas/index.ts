@@ -60,6 +60,12 @@ export const advanceDrawSchema = z.discriminatedUnion("mode", [
     groupSize: z.number().int().min(2),
   }),
   z.object({
+    mode: z.literal("playIn"),
+    direct: z.number().int().min(1),
+    groupSize: z.number().int().min(2),
+    perGroup: z.number().int().min(1).optional(),
+  }),
+  z.object({
     mode: z.literal("knockout"),
     qualifiers: z.number().int().min(2).optional(),
     seeding: z.enum(["ranked", "draw"]).optional(),
@@ -73,4 +79,49 @@ export const requestWindowSchema = z.object({
   openHour: z.number().int().min(0).max(23).optional(),
   closeHour: z.number().int().min(1).max(24).optional(),
   note: z.string().max(200).optional(),
+});
+
+/* ── Champions League ── */
+
+const slug = z
+  .string()
+  .trim()
+  .min(1, "Form slug is required")
+  .regex(
+    /^[a-z0-9][a-z0-9-_]*$/i,
+    "Slug may only use letters, numbers, - and _",
+  );
+
+export const createCompetitionSchema = z.object({
+  name: z.string().trim().min(2, "Name is required"),
+  season: z.string().trim().max(40).optional(),
+  sport: z.string().trim().min(1, "Sport is required"),
+  description: z.string().trim().max(2000).optional(),
+  formSlug: slug,
+});
+
+export const updateCompetitionSchema = createCompetitionSchema.partial();
+
+const optionalText = (max: number) => z.string().trim().max(max).optional();
+
+const leaguePlayer = z.object({
+  _id: objectId.optional(),
+  name: z.string().trim().min(1, "Player name is required").max(80),
+  email: optionalText(120),
+  phone: optionalText(30),
+  studentId: optionalText(40),
+  programme: optionalText(80),
+  intake: optionalText(40),
+  shirtNumber: z.number().int().min(1).max(99).nullable().optional(),
+  position: z.enum(["GK", "FP"]).optional(),
+  captaincy: z.enum(["captain", "vice"]).nullable().optional(),
+  photo: z
+    .object({ url: z.string().url(), publicId: z.string().min(1) })
+    .nullable()
+    .optional(),
+});
+
+export const leagueTeamSchema = z.object({
+  name: z.string().trim().min(1, "Team name is required").max(80),
+  players: z.array(leaguePlayer).max(30).optional(),
 });
