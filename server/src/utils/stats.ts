@@ -209,7 +209,11 @@ type LpRow = {
 };
 
 /** League Points earned per team from finished matches (§17.2). */
-export const leaguePoints = (matches: StatsMatch[], teamIds: string[]) => {
+export const leaguePoints = (
+  matches: StatsMatch[],
+  teamIds: string[],
+  extraBans: ReturnType<typeof suspensions> = [],
+) => {
   const rows = new Map<string, LpRow>(
     teamIds.map((t) => [
       t,
@@ -227,7 +231,7 @@ export const leaguePoints = (matches: StatsMatch[], teamIds: string[]) => {
       },
     ]),
   );
-  const bans = suspensions(matches);
+  const bans = [...suspensions(matches), ...extraBans];
 
   for (const m of matches.filter((x) => x.status === "finished")) {
     const result = resultOf(m as MatchLike);

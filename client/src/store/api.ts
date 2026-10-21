@@ -344,6 +344,113 @@ export type NewsInput = Partial<
   match?: string | null;
 };
 
+/* ── Transfer market ── */
+
+export type SanctionKind =
+  "buy_ban" | "sell_ban" | "lp_deduction" | "transfer_ineligible" | "match_ban";
+
+export interface MarketPlayer {
+  _id: string;
+  team: string;
+  name: string;
+  shirtNumber?: number;
+  position: "GK" | "FP";
+  photo?: { url: string; publicId: string };
+  transferValue?: number | null;
+  movedInWindow?: string | null;
+}
+
+export interface TransferWindow {
+  _id: string;
+  name: string;
+  opensAt: string;
+  closesAt: string;
+}
+
+export interface TransferRecord {
+  _id: string;
+  window: string;
+  player: string;
+  fromTeam: string;
+  toTeam: string;
+  fee: number;
+  consentNote?: string;
+  status: "completed" | "cancelled";
+  cancelReason?: string;
+  cancelledAt?: string;
+  createdAt: string;
+}
+
+export interface SanctionRecord {
+  _id: string;
+  kind: SanctionKind;
+  team?: string | null;
+  player?: string | null;
+  amount?: number;
+  matches?: number;
+  expiresAt?: string | null;
+  reason: string;
+  revokedAt?: string | null;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface Market {
+  teams: { _id: string; name: string }[];
+  players: MarketPlayer[];
+  windows: TransferWindow[];
+  openWindow: string | null;
+  knockoutStarted: boolean;
+  balances: {
+    team: string;
+    squad: number;
+    earned: number;
+    spent: number;
+    received: number;
+    deducted: number;
+    balance: number;
+  }[];
+  transfers: TransferRecord[];
+  sanctions: SanctionRecord[];
+}
+
+export interface TransferCheck {
+  ok: boolean;
+  fails: string[];
+  fee: number | null;
+}
+
+export type MarketAction =
+  | {
+      kind: "window";
+      data: { name: string; opensAt: string; closesAt: string };
+    }
+  | { kind: "deleteWindow"; windowId: string }
+  | { kind: "values"; data: { values: Record<string, number | null> } }
+  | {
+      kind: "transfer";
+      data: {
+        player: string;
+        toTeam: string;
+        consent: boolean;
+        consentNote?: string;
+      };
+    }
+  | { kind: "cancel"; transferId: string; reason: string }
+  | {
+      kind: "sanction";
+      data: {
+        kind: SanctionKind;
+        team?: string;
+        player?: string;
+        amount?: number;
+        matches?: number;
+        expiresAt?: string | null;
+        reason: string;
+      };
+    }
+  | { kind: "revoke"; sanctionId: string };
+
 /* ── Stats ── */
 
 export interface LeagueStats {
@@ -419,6 +526,7 @@ export const sportsApi = createApi({
     "Match",
     "Stats",
     "News",
+    "Market",
   ],
   // Refetch stale data when the tab regains focus or the network returns.
   refetchOnFocus: true,
@@ -674,6 +782,93 @@ export const sportsApi = createApi({
         { type: "Stats", id: competitionId },
       ],
     }),
+    /* ── Transfer market ── */
+    getMarket: build.query<Market, string>({
+      query: (id) => ({ url: `/competitions/${id}/market` }),
+      providesTags: (_r, _e, id) => [{ type: "Market", id }],
+    }),
+    checkTransfer: build.mutation<
+      TransferCheck,
+      {
+        competitionId: string;
+        player: string;
+        toTeam: string;
+        consent: boolean;
+      }
+    >({
+      query: ({ competitionId, ...data }) => ({
+        url: `/competitions/${competitionId}/market/check`,
+        method: "POST",
+        data,
+      }),
+    }),
+    marketAction: build.mutation<
+      Market,
+      { competitionId: string; action: MarketAction }
+    >({
+      query: ({ competitionId, action }) => {
+        const base = `/competitions/${competitionId}/market`;
+        switch (action.kind) {
+          case "window":
+            return {
+              url: `${base}/windows`,
+              method: "POST",
+              data: action.data,
+            };
+          case "deleteWindow":
+            return {
+              url: `${base}/windows/${action.windowId}`,
+              method: "DELETE",
+            };
+          case "values":
+            return { url: `${base}/values`, method: "PUT", data: action.data };
+          case "transfer":
+            return {
+              url: `${base}/transfers`,
+              method: "POST",
+              data: action.data,
+            };
+          case "cancel":
+            return {
+              url: `${base}/transfers/${action.transferId}/cancel`,
+              method: "POST",
+              data: { reason: action.reason },
+            };
+          case "sanction":
+            return {
+              url: `${base}/sanctions`,
+              method: "POST",
+              data: action.data,
+            };
+          case "revoke":
+            return {
+              url: `${base}/sanctions/${action.sanctionId}/revoke`,
+              method: "POST",
+            };
+        }
+      },
+      async onQueryStarted({ competitionId }, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            sportsApi.util.upsertQueryData("getMarket", competitionId, data),
+          );
+        } catch {
+          /* handled by the caller */
+        }
+      },
+      // Transfers move players between squads.
+      invalidatesTags: (_r, _e, { competitionId }) => [
+        { type: "Competition", id: competitionId },
+        { type: "Stats", id: competitionId },
+      ],
+    }),
+    getPublicMarket: build.query<Market, string>({
+      query: (slug) => ({
+        url: `/competitions/public/${encodeURIComponent(slug)}/market`,
+      }),
+    }),
+
     /* ── News ── */
     getCompetitionNews: build.query<NewsPost[], string>({
       query: (id) => ({ url: `/competitions/${id}/news` }),
@@ -911,6 +1106,10 @@ export const {
   useDeleteNewsPostMutation,
   useGetPublicNewsQuery,
   useGetPublicNewsPostQuery,
+  useGetMarketQuery,
+  useCheckTransferMutation,
+  useMarketActionMutation,
+  useGetPublicMarketQuery,
 } = sportsApi;
 
 /** Message from an RTK Query error (ours or a serialized one). */

@@ -196,3 +196,44 @@ export const suspensions = (matches: ScheduledMatch[]): Suspension[] => {
 /** Players banned from a given match. */
 export const suspendedIn = (matchId: string, all: Suspension[]) =>
   all.filter((s) => s.servedIn.includes(matchId)).map((s) => s.player);
+
+export interface MatchBanSanction {
+  _id: Id;
+  player?: Id | null;
+  matches?: number;
+  revokedAt?: Date | null;
+  createdAt: Date;
+}
+
+/**
+ * Extra match bans imposed by the Sports Club (§17.6), served in the
+ * player's current team's next matches after the sanction.
+ */
+export const sanctionSuspensions = (
+  sanctions: MatchBanSanction[],
+  matches: ScheduledMatch[],
+  teamOfPlayer: Map<string, string>,
+): Suspension[] =>
+  sanctions
+    .filter((s) => !s.revokedAt && s.player && s.matches)
+    .map((s) => {
+      const player = s.player!.toString();
+      const team = teamOfPlayer.get(player) ?? "";
+      const later = [...matches]
+        .filter(
+          (m) =>
+            (same(m.home, team) || same(m.away, team)) &&
+            (m.kickoff?.getTime() ?? Infinity) > s.createdAt.getTime(),
+        )
+        .sort(chronological)
+        .slice(0, s.matches);
+      return {
+        player,
+        team,
+        fromMatch: `sanction:${s._id.toString()}`,
+        matches: s.matches!,
+        servedIn: later.map((m) => m._id.toString()),
+        remaining:
+          s.matches! - later.filter((m) => m.status === "finished").length,
+      };
+    });

@@ -21,6 +21,10 @@ export interface IPlayer extends Document {
   captaincy?: (typeof CAPTAINCY)[number] | null;
   photo?: { url: string; publicId: string };
   order: number;
+  /** Transfer Value in League Points, set by the Sports Club (§17.3). */
+  transferValue?: number | null;
+  /** Window the player last moved in: no second move in it (§17.4). */
+  movedInWindow?: mongoose.Types.ObjectId | null;
 }
 
 const PlayerSchema = new Schema<IPlayer>(
@@ -48,6 +52,12 @@ const PlayerSchema = new Schema<IPlayer>(
       default: undefined,
     },
     order: { type: Number, default: 0 },
+    transferValue: { type: Number, min: 0, default: null },
+    movedInWindow: {
+      type: Schema.Types.ObjectId,
+      ref: "TransferWindow",
+      default: null,
+    },
   },
   { timestamps: true },
 );

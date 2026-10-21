@@ -26,6 +26,9 @@ const ChampionsLeague = lazy(
 const ChampionsLeagueManage = lazy(
   () => import("./components/auth_client/champions/ChampionsLeagueManage"),
 );
+const TransferMarket = lazy(
+  () => import("./components/auth_client/champions/market/TransferMarket"),
+);
 const ChampionsLeaguePublic = lazy(
   () => import("./pages/ChampionsLeaguePublic"),
 );
@@ -159,6 +162,10 @@ const router = createBrowserRouter([
             path: "champions-league/:id",
             element: <ChampionsLeagueManage />,
           },
+          {
+            path: "champions-league/:id/market",
+            element: <TransferMarket />,
+          },
         ],
       },
       {
@@ -203,6 +210,10 @@ const router = createBrowserRouter([
       {
         path: "/champions-league/:slug/news",
         element: <ChampionsLeaguePublic view="news" />,
+      },
+      {
+        path: "/champions-league/:slug/transfers",
+        element: <ChampionsLeaguePublic view="transfers" />,
       },
       {
         path: "/champions-league/:slug/news/:postSlug",

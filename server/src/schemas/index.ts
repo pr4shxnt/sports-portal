@@ -144,6 +144,45 @@ const newsFields = {
 export const createNewsSchema = z.object(newsFields);
 export const updateNewsSchema = z.object(newsFields).partial();
 
+/* ── Transfer market ── */
+
+export const transferWindowSchema = z.object({
+  name: z.string().trim().min(1, "Name the window").max(60),
+  opensAt: z.string().datetime({ offset: true }),
+  closesAt: z.string().datetime({ offset: true }),
+});
+
+export const transferValuesSchema = z.object({
+  values: z.record(objectId, z.number().int().min(0).max(100000).nullable()),
+});
+
+export const transferCheckSchema = z.object({
+  player: objectId,
+  toTeam: objectId,
+  consent: z.boolean().optional(),
+  consentNote: z.string().trim().max(300).optional(),
+});
+
+export const cancelTransferSchema = z.object({
+  reason: z.string().trim().min(3, "Give a reason").max(300),
+});
+
+export const sanctionSchema = z.object({
+  kind: z.enum([
+    "buy_ban",
+    "sell_ban",
+    "lp_deduction",
+    "transfer_ineligible",
+    "match_ban",
+  ]),
+  team: objectId.optional(),
+  player: objectId.optional(),
+  amount: z.number().int().min(1).max(100000).optional(),
+  matches: z.number().int().min(1).max(20).optional(),
+  expiresAt: z.string().datetime({ offset: true }).nullable().optional(),
+  reason: z.string().trim().min(3, "Give a reason").max(300),
+});
+
 /* ── Match centre ── */
 
 export const openMatchSchema = z.object({

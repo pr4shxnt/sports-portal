@@ -37,12 +37,29 @@ import {
   listPublicNews,
   updateNews,
 } from "../controllers/newsController.js";
+import {
+  cancelTransfer,
+  checkTransferRoute,
+  createSanction,
+  createTransfer,
+  createWindow,
+  deleteWindow,
+  getMarket,
+  getPublicMarket,
+  revokeSanction,
+  setValues,
+} from "../controllers/transferController.js";
 import { protect, authorize } from "../middlewares/authMiddleware.js";
 import { UserRole } from "../models/User.js";
 import { validateBody } from "../middlewares/validateRequest.js";
 import {
   createCompetitionSchema,
   createNewsSchema,
+  cancelTransferSchema,
+  sanctionSchema,
+  transferCheckSchema,
+  transferValuesSchema,
+  transferWindowSchema,
   updateNewsSchema,
   leagueTeamSchema,
   matchEventSchema,
@@ -61,6 +78,7 @@ router.get("/public/:slug/matches", listPublicMatches);
 router.get("/public/:slug/matches/:matchDocId", getPublicMatch);
 router.get("/public/:slug/stats", getPublicStats);
 router.get("/public/:slug/news", listPublicNews);
+router.get("/public/:slug/market", getPublicMarket);
 router.get("/public/:slug/news/:postSlug", getPublicNews);
 
 // Everything else is admin-only.
@@ -78,6 +96,37 @@ router.post("/:id/reset", resetCompetition);
 router.post("/:id/teams", validateBody(leagueTeamSchema), addTeam);
 router.put("/:id/teams/:teamId", validateBody(leagueTeamSchema), updateTeam);
 router.delete("/:id/teams/:teamId", removeTeam);
+
+// Transfer market
+router.get("/:id/market", getMarket);
+router.post(
+  "/:id/market/windows",
+  validateBody(transferWindowSchema),
+  createWindow,
+);
+router.delete("/:id/market/windows/:windowId", deleteWindow);
+router.put("/:id/market/values", validateBody(transferValuesSchema), setValues);
+router.post(
+  "/:id/market/check",
+  validateBody(transferCheckSchema),
+  checkTransferRoute,
+);
+router.post(
+  "/:id/market/transfers",
+  validateBody(transferCheckSchema),
+  createTransfer,
+);
+router.post(
+  "/:id/market/transfers/:transferId/cancel",
+  validateBody(cancelTransferSchema),
+  cancelTransfer,
+);
+router.post(
+  "/:id/market/sanctions",
+  validateBody(sanctionSchema),
+  createSanction,
+);
+router.post("/:id/market/sanctions/:sanctionId/revoke", revokeSanction);
 
 // News
 router.get("/:id/news", listNews);

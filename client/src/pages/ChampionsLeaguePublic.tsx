@@ -10,6 +10,7 @@ import {
   useGetPublicNewsQuery,
   useGetPublicNewsPostQuery,
   type NewsPost,
+  useGetPublicMarketQuery,
   useGetPublicCompetitionsQuery,
 } from "../store/api";
 import CompetitionPhases from "../components/auth_client/champions/CompetitionPhases";
@@ -23,6 +24,13 @@ import {
   paragraphs,
 } from "../components/auth_client/champions/news/newsMeta";
 import { imageUrl } from "../lib/cloudinary";
+import {
+  SANCTION_LABEL,
+  describeSanction,
+  formatWhen,
+  nameMaps,
+  windowState,
+} from "../components/auth_client/champions/market/marketMeta";
 import MatchTimeline from "../components/auth_client/champions/match/MatchTimeline";
 import {
   STATUS_LABEL,
@@ -185,6 +193,8 @@ const CompetitionView = ({ slug }: { slug: string }) => {
     pollingInterval: 120_000,
   });
   const { data: latest } = useGetPublicNewsQuery({ slug, limit: 3 });
+  const { data: market } = useGetPublicMarketQuery(slug);
+  const marketOpen = market?.windows.find((w) => w._id === market.openWindow);
   const openFixture = useCallback(
     (drawId: string, fixture: Fixture) => {
       const match = matches.find(
@@ -249,6 +259,29 @@ const CompetitionView = ({ slug }: { slug: string }) => {
           )}
         </div>
       </header>
+
+      {market && (market.windows.length > 0 || market.transfers.length > 0) && (
+        <Link
+          to={`/champions-league/${slug}/transfers`}
+          className="mb-8 flex items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-[#DD1D25]/60 transition-colors"
+        >
+          <span>
+            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#DD1D25]">
+              Transfer market
+            </span>
+            <span className="block font-bold">
+              {market.knockoutStarted
+                ? "Closed for the knockout stage"
+                : marketOpen
+                  ? `${marketOpen.name} is open until ${formatWhen(marketOpen.closesAt)}`
+                  : "Window closed"}
+            </span>
+          </span>
+          <span className="text-xs font-bold text-zinc-500">
+            LP, values & transfers →
+          </span>
+        </Link>
+      )}
 
       {!!latest?.posts.length && (
         <section className="mb-12">
@@ -653,9 +686,202 @@ const Article = ({ slug, postSlug }: { slug: string; postSlug: string }) => {
   );
 };
 
-const ChampionsLeaguePublic = ({ view }: { view?: "news" }) => {
+/** League Points, Transfer Values, transfers and sanctions (§17). */
+const TransfersView = ({ slug }: { slug: string }) => {
+  const {
+    data: market,
+    isLoading,
+    isError,
+  } = useGetPublicMarketQuery(slug, {
+    pollingInterval: 120_000,
+  });
+  const back = (
+    <Link
+      to={`/champions-league/${slug}`}
+      className="text-sm text-zinc-500 hover:text-[#DD1D25]"
+    >
+      ← Back to the league
+    </Link>
+  );
+  if (isLoading)
+    return (
+      <Shell>
+        <div className="h-64 rounded-2xl bg-zinc-100 dark:bg-zinc-900 animate-pulse" />
+      </Shell>
+    );
+  if (isError || !market)
+    return (
+      <Shell>
+        {back}
+        <p className="text-center py-16 text-zinc-500">Not found.</p>
+      </Shell>
+    );
+
+  const names = nameMaps(market);
+  const open = market.windows.find((w) => w._id === market.openWindow);
+  const upcoming = market.windows.find(
+    (w) => windowState(w) === "upcoming",
+  );
+  const box =
+    "p-4 sm:p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800";
+  const th =
+    "pb-2 px-2 text-[10px] font-black uppercase tracking-wider text-zinc-400";
+
+  return (
+    <Shell>
+      {back}
+      <h1 className="mt-4 text-3xl sm:text-4xl font-black tracking-tight">
+        Transfer market
+      </h1>
+      <p className="mt-2 text-sm text-zinc-500 max-w-2xl">
+        Teams earn League Points (LP) for every kind of play and spend them to
+        sign players at their Transfer Value, only during announced windows and
+        with the player's consent. LP never change the league table.
+      </p>
+      <p
+        className={`mt-4 inline-block px-3 py-1 rounded-full text-xs font-black ${open ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400" : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"}`}
+      >
+        {market.knockoutStarted
+          ? "Closed — no transfers in the knockout stage"
+          : open
+            ? `${open.name} open until ${formatWhen(open.closesAt)}`
+            : upcoming
+              ? `${upcoming.name} opens ${formatWhen(upcoming.opensAt)}`
+              : "No window open"}
+      </p>
+
+      <div className="mt-8 grid lg:grid-cols-2 gap-6">
+        <section className={box}>
+          <h2 className="font-black mb-3">LP balances</h2>
+          <table className="w-full text-sm tabular-nums">
+            <thead>
+              <tr className="text-left">
+                <th className={th}>Team</th>
+                <th className={`${th} text-right`}>Earned</th>
+                <th className={`${th} text-right`}>Net transfers</th>
+                <th className={`${th} text-right`}>Balance</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              {[...market.balances]
+                .sort((a, b) => b.balance - a.balance)
+                .map((b) => (
+                  <tr key={b.team}>
+                    <td className="py-2 px-2 font-semibold">
+                      {names.team.get(b.team)}
+                    </td>
+                    <td className="py-2 px-2 text-right">{b.earned}</td>
+                    <td className="py-2 px-2 text-right">
+                      {b.received - b.spent - b.deducted || 0}
+                    </td>
+                    <td className="py-2 px-2 text-right font-black">
+                      {b.balance}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </section>
+
+        <section className={box}>
+          <h2 className="font-black mb-3">Transfers</h2>
+          {market.transfers.length === 0 ? (
+            <p className="text-sm text-zinc-500">No transfers yet.</p>
+          ) : (
+            <ul className="space-y-2.5">
+              {market.transfers.map((t) => {
+                const p = names.player.get(t.player);
+                return (
+                  <li key={t._id} className="flex items-center gap-3 text-sm">
+                    <PlayerAvatar
+                      name={p?.name ?? "?"}
+                      photo={p?.photo}
+                      size={32}
+                    />
+                    <span
+                      className={`flex-1 min-w-0 ${t.status === "cancelled" ? "line-through text-zinc-400" : ""}`}
+                    >
+                      <span className="font-bold">{p?.name}</span>{" "}
+                      <span className="text-zinc-500">
+                        {names.team.get(t.fromTeam)} →{" "}
+                        {names.team.get(t.toTeam)}
+                      </span>
+                    </span>
+                    <span className="text-xs font-black tabular-nums">
+                      {t.status === "cancelled" ? "Cancelled" : `${t.fee} LP`}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      <section className={`${box} mt-6`}>
+        <h2 className="font-black mb-1">Transfer Values</h2>
+        <p className="text-xs text-zinc-500 mb-4">
+          The price of each player in LP, set by the Sports Club.
+        </p>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {market.teams.map((t) => (
+            <div key={t._id}>
+              <h3 className="text-sm font-black mb-2">{t.name}</h3>
+              <ul className="space-y-1.5">
+                {market.players
+                  .filter((p) => p.team === t._id)
+                  .sort(
+                    (a, b) => (b.transferValue ?? -1) - (a.transferValue ?? -1),
+                  )
+                  .map((p) => (
+                    <li key={p._id} className="flex items-center gap-2 text-sm">
+                      <PlayerAvatar name={p.name} photo={p.photo} size={24} />
+                      <span className="flex-1 min-w-0 truncate">{p.name}</span>
+                      <span className="text-xs font-bold tabular-nums text-zinc-500">
+                        {p.transferValue != null
+                          ? `${p.transferValue} LP`
+                          : "—"}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {market.sanctions.length > 0 && (
+        <section className={`${box} mt-6`}>
+          <h2 className="font-black mb-3">Sanctions</h2>
+          <ul className="space-y-2.5 text-sm">
+            {market.sanctions.map((s) => {
+              const { subject, length } = describeSanction(s, market);
+              return (
+                <li key={s._id}>
+                  <span className="font-bold">{SANCTION_LABEL[s.kind]}</span> —{" "}
+                  {subject} · {length}
+                  {!s.active && (
+                    <span className="ml-1 text-xs text-zinc-400">
+                      ({s.revokedAt ? "revoked" : "ended"})
+                    </span>
+                  )}
+                  <span className="block text-xs text-zinc-500">
+                    {s.reason} · {formatWhen(s.createdAt)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+    </Shell>
+  );
+};
+
+const ChampionsLeaguePublic = ({ view }: { view?: "news" | "transfers" }) => {
   const { slug, matchDocId, postSlug } = useParams();
   if (slug && postSlug) return <Article slug={slug} postSlug={postSlug} />;
+  if (slug && view === "transfers") return <TransfersView slug={slug} />;
   if (slug && view === "news") return <NewsList slug={slug} />;
   if (slug && matchDocId)
     return <MatchView slug={slug} matchDocId={matchDocId} />;

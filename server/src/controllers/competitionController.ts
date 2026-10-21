@@ -14,6 +14,8 @@ import Player, { IPlayer } from "../models/Player.js";
 import Match from "../models/Match.js";
 import NewsPost from "../models/NewsPost.js";
 import { deleteCompetitionNews } from "./newsController.js";
+import { deleteCompetitionMarket } from "./transferController.js";
+import Transfer from "../models/Transfer.js";
 import { shuffle } from "../utils/tournament.js";
 import { destroyImage, isOwnImage } from "../utils/cloudinary.js";
 import { teamFromSubmission } from "../utils/submissionTeam.js";
@@ -452,6 +454,7 @@ export const deleteCompetition = handle(async (req, res) => {
     Match.deleteMany({ competition: competition._id }),
     deleteTeams({ competition: competition._id }),
     deleteCompetitionNews(competition._id),
+    deleteCompetitionMarket(competition._id),
   ]);
   await competition.deleteOne();
   res.json({ message: "Competition deleted" });
@@ -539,16 +542,17 @@ export const updateTeam = handle(async (req, res) => {
     const removedIds = removed.map((p) => p._id);
     if (
       removedIds.length &&
-      (await Match.exists({
+      ((await Match.exists({
         $or: [
           { "events.player": { $in: removedIds } },
           { "shootout.player": { $in: removedIds } },
         ],
-      }))
+      })) ||
+        (await Transfer.exists({ player: { $in: removedIds } })))
     ) {
       throw new HttpError(
         400,
-        "A player you removed already has goals or cards in a match. Remove those events first.",
+        "A player you removed has match events or a transfer on record, so they can't be deleted.",
       );
     }
     removed.forEach((p) => replacedPhotos.push(p.photo?.publicId));
@@ -615,6 +619,12 @@ export const resetCompetition = handle(async (req, res) => {
     Match.deleteMany({ competition: competition._id }),
     // Posts survive a reset; their match links don't.
     NewsPost.updateMany({ competition: competition._id }, { match: null }),
+    // LP restart from zero, so the market does too (squads stay as they are).
+    deleteCompetitionMarket(competition._id),
+    Player.updateMany(
+      { competition: competition._id },
+      { $set: { movedInWindow: null } },
+    ),
   ]);
   competition.status = CompetitionStatus.SETUP;
   await competition.save();
