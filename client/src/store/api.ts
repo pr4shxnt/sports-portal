@@ -271,6 +271,7 @@ export interface MatchRecord {
   events: MatchEvent[];
   shootout: ShootoutKick[];
   forfeitedBy?: string | null;
+  goalkeepers?: { home?: string | null; away?: string | null };
 }
 
 export interface MatchDetail {
@@ -313,7 +314,62 @@ export type MatchUpdate = Partial<{
   venue: string;
   status: MatchStatus;
   forfeitedBy: string | null;
+  goalkeepers: { home?: string | null; away?: string | null };
 }>;
+
+/* ── Stats ── */
+
+export interface LeagueStats {
+  teams: { _id: string; name: string }[];
+  players: (PublicPlayer & { team: string })[];
+  goldenBoot: {
+    player: string;
+    team: string;
+    goals: number;
+    penalties: number;
+  }[];
+  goldenGlove: {
+    player: string;
+    team: string;
+    matches: number;
+    conceded: number;
+    cleanSheets: number;
+    perMatch: number;
+  }[];
+  fairPlay: { team: string; yellows: number; reds: number; points: number }[];
+  cards: { player: string; team: string; yellows: number; reds: number }[];
+  suspensions: {
+    player: string;
+    team: string;
+    fromMatch: string;
+    matches: number;
+    remaining: number;
+  }[];
+  leaguePoints: {
+    team: string;
+    matches: number;
+    eligible: number;
+    results: number;
+    goals: number;
+    cleanSheets: number;
+    penaltiesScored: number;
+    penaltiesSaved: number;
+    noCards: number;
+    total: number;
+  }[];
+  lpValues: Record<
+    | "eligible"
+    | "win"
+    | "draw"
+    | "goal"
+    | "cleanSheet"
+    | "penaltyScored"
+    | "penaltySaved"
+    | "noCards",
+    number
+  >;
+  matchesPlayed: number;
+}
 
 export type NewMatchEvent = Omit<
   MatchEvent,
@@ -327,7 +383,15 @@ const drawTags = (draw: { _id: string }) => [
 export const sportsApi = createApi({
   reducerPath: "sportsApi",
   baseQuery: axiosBaseQuery,
-  tagTypes: ["Event", "Team", "Draw", "RequestWindow", "Competition", "Match"],
+  tagTypes: [
+    "Event",
+    "Team",
+    "Draw",
+    "RequestWindow",
+    "Competition",
+    "Match",
+    "Stats",
+  ],
   // Refetch stale data when the tab regains focus or the network returns.
   refetchOnFocus: true,
   refetchOnReconnect: true,
@@ -579,7 +643,17 @@ export const sportsApi = createApi({
       invalidatesTags: (_r, _e, { competitionId }) => [
         { type: "Competition", id: competitionId },
         { type: "Match", id: `LIST-${competitionId}` },
+        { type: "Stats", id: competitionId },
       ],
+    }),
+    getCompetitionStats: build.query<LeagueStats, string>({
+      query: (id) => ({ url: `/competitions/${id}/stats` }),
+      providesTags: (_r, _e, id) => [{ type: "Stats", id }],
+    }),
+    getPublicStats: build.query<LeagueStats, string>({
+      query: (slug) => ({
+        url: `/competitions/public/${encodeURIComponent(slug)}/stats`,
+      }),
     }),
     getPublicMatches: build.query<MatchSummary[], string>({
       query: (slug) => ({
@@ -741,6 +815,8 @@ export const {
   useChangeMatchMutation,
   useGetPublicMatchesQuery,
   useGetPublicMatchQuery,
+  useGetCompetitionStatsQuery,
+  useGetPublicStatsQuery,
 } = sportsApi;
 
 /** Message from an RTK Query error (ours or a serialized one). */

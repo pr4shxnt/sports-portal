@@ -26,6 +26,10 @@ export interface Draw {
   parentDraw?: string;
   qualifiers?: number;
   playIn?: number;
+  /** Set on Champions League draws: §10.3 tie-breakers apply. */
+  competition?: string;
+  /** Champions League fair play points per team (lower is better). */
+  fairPlay?: Record<string, number>;
   directQualifiers?: TeamRef[];
   matchResults?: Record<string, string>;
   matchScores?: Record<string, string>;
@@ -150,10 +154,27 @@ const tabulate = (
 const byOverall = (a: StandingRow, b: StandingRow) =>
   b.GD - a.GD || b.GF - a.GF || b.W - a.W;
 
+/** Orders by points, handing each group level on points to `breakTie`. */
+const resolveTies = (
+  rows: StandingRow[],
+  breakTie: (tied: StandingRow[]) => StandingRow[],
+) => {
+  const byPoints = new Map<number, StandingRow[]>();
+  rows.forEach((r) => byPoints.set(r.Pts, [...(byPoints.get(r.Pts) || []), r]));
+  return [...byPoints.keys()]
+    .sort((a, b) => b - a)
+    .flatMap((pts) => {
+      const tied = byPoints.get(pts)!;
+      return tied.length === 1 ? tied : breakTie(tied);
+    });
+};
+
 /**
  * UEFA tie-breakers. League phase: Pts → GD → GF → W.
  * Group stage: Pts → head-to-head (Pts, GD, GF) → GD → GF → W.
  * Legacy win-only draws: Pts → GD.
+ * Champions League (Rules §10.3): Pts → head-to-head (Pts, GD) → GD → GF →
+ * fair play.
  */
 export const computeStandings = (draw: Draw, table: Table): StandingRow[] => {
   const raw = tabulate(draw, table.name, table.teams);
@@ -161,6 +182,29 @@ export const computeStandings = (draw: Draw, table: Table): StandingRow[] => {
   const stable = (a: StandingRow, b: StandingRow) =>
     order.get(a.team._id)! - order.get(b.team._id)!;
   const rows = table.teams.map((t) => raw.get(t._id)!);
+
+  if (draw.competition) {
+    const fair = (r: StandingRow) => draw.fairPlay?.[r.team._id] ?? 0;
+    return resolveTies(rows, (tied) => {
+      const h2h = tabulate(
+        draw,
+        table.name,
+        tied.map((r) => r.team),
+      );
+      return [...tied].sort((a, b) => {
+        const ha = h2h.get(a.team._id)!;
+        const hb = h2h.get(b.team._id)!;
+        return (
+          hb.Pts - ha.Pts ||
+          hb.GD - ha.GD ||
+          b.GD - a.GD ||
+          b.GF - a.GF ||
+          fair(a) - fair(b) ||
+          stable(a, b)
+        );
+      });
+    });
+  }
 
   if (scoringOf(draw) === "winOnly") {
     return rows.sort((a, b) => b.Pts - a.Pts || b.GD - a.GD || stable(a, b));
@@ -348,6 +392,8 @@ export const pointsLegend = (draw: Draw) =>
   scoringOf(draw) === "football" ? "Win 3 · Draw 1 · Loss 0" : "Win 1 · Loss 0";
 
 export const tieBreakLegend = (draw: Draw) => {
+  if (draw.competition)
+    return "Ties: head-to-head → goal difference → goals scored → fair play";
   if (scoringOf(draw) === "winOnly") return "Ties: goal difference";
   return draw.format === "League"
     ? "Ties: goal difference → goals scored → wins"

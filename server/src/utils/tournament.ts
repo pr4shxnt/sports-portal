@@ -8,6 +8,8 @@
  *  - League phase (single table, UCL 2024+): Pts → GD → GF → W
  *  - Group stage: Pts → head-to-head (Pts, GD, GF) → GD → GF → W
  *  - Legacy "winOnly" draws (pre-league): Pts → GD
+ *  - Champions League draws (Rules §10.3): Pts → head-to-head (Pts, GD) →
+ *    GD → GF → fair play (fewest points)
  * Remaining ties fall back to draw order, which is random.
  */
 
@@ -118,6 +120,13 @@ const tabulate = (
 const byOverall = (a: StandingRow, b: StandingRow) =>
   b.GD - a.GD || b.GF - a.GF || b.W - a.W;
 
+export interface StandingOptions {
+  /** Champions League tie-breakers (§10.3), for league and qualifier tables. */
+  rules?: "scl";
+  /** Fair play points per team (1 per yellow, 3 per red); lower is better. */
+  fairPlay?: Record<string, number>;
+}
+
 export const computeStandings = (
   groupName: string,
   teamIds: string[],
@@ -125,6 +134,7 @@ export const computeStandings = (
   scores: ResultMap = {},
   scoring: Scoring = "winOnly",
   kind: TableKind = "group",
+  options: StandingOptions = {},
 ): StandingRow[] => {
   const table = tabulate(groupName, teamIds, results, scores, scoring);
   const drawOrder = new Map(teamIds.map((id, i) => [id, i]));
@@ -132,25 +142,9 @@ export const computeStandings = (
   const stable = (a: StandingRow, b: StandingRow) =>
     drawOrder.get(a.teamId)! - drawOrder.get(b.teamId)!;
 
-  if (scoring === "winOnly") {
-    return rows.sort((a, b) => b.Pts - a.Pts || b.GD - a.GD || stable(a, b));
-  }
-
-  if (kind === "league") {
-    return rows.sort(
-      (a, b) => b.Pts - a.Pts || byOverall(a, b) || stable(a, b),
-    );
-  }
-
-  // Group stage: resolve each points-tie with a head-to-head mini table.
-  const byPoints = new Map<number, StandingRow[]>();
-  rows.forEach((r) => byPoints.set(r.Pts, [...(byPoints.get(r.Pts) || []), r]));
-
-  return [...byPoints.keys()]
-    .sort((a, b) => b - a)
-    .flatMap((pts) => {
-      const tied = byPoints.get(pts)!;
-      if (tied.length === 1) return tied;
+  if (options.rules === "scl") {
+    const fair = (r: StandingRow) => options.fairPlay?.[r.teamId] ?? 0;
+    return resolveTies(rows, (tied) => {
       const h2h = tabulate(
         groupName,
         tied.map((r) => r.teamId),
@@ -164,11 +158,60 @@ export const computeStandings = (
         return (
           hb.Pts - ha.Pts ||
           hb.GD - ha.GD ||
-          hb.GF - ha.GF ||
-          byOverall(a, b) ||
+          b.GD - a.GD ||
+          b.GF - a.GF ||
+          fair(a) - fair(b) ||
           stable(a, b)
         );
       });
+    });
+  }
+
+  if (scoring === "winOnly") {
+    return rows.sort((a, b) => b.Pts - a.Pts || b.GD - a.GD || stable(a, b));
+  }
+
+  if (kind === "league") {
+    return rows.sort(
+      (a, b) => b.Pts - a.Pts || byOverall(a, b) || stable(a, b),
+    );
+  }
+
+  // Group stage: resolve each points-tie with a head-to-head mini table.
+  return resolveTies(rows, (tied) => {
+    const h2h = tabulate(
+      groupName,
+      tied.map((r) => r.teamId),
+      results,
+      scores,
+      scoring,
+    );
+    return [...tied].sort((a, b) => {
+      const ha = h2h.get(a.teamId)!;
+      const hb = h2h.get(b.teamId)!;
+      return (
+        hb.Pts - ha.Pts ||
+        hb.GD - ha.GD ||
+        hb.GF - ha.GF ||
+        byOverall(a, b) ||
+        stable(a, b)
+      );
+    });
+  });
+};
+
+/** Orders by points, handing each group of teams level on points to `breakTie`. */
+const resolveTies = (
+  rows: StandingRow[],
+  breakTie: (tied: StandingRow[]) => StandingRow[],
+) => {
+  const byPoints = new Map<number, StandingRow[]>();
+  rows.forEach((r) => byPoints.set(r.Pts, [...(byPoints.get(r.Pts) || []), r]));
+  return [...byPoints.keys()]
+    .sort((a, b) => b - a)
+    .flatMap((pts) => {
+      const tied = byPoints.get(pts)!;
+      return tied.length === 1 ? tied : breakTie(tied);
     });
 };
 

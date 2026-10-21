@@ -8,6 +8,7 @@ import {
   useCompetitionActionMutation,
   useDeleteCompetitionMutation,
   useGetCompetitionMatchesQuery,
+  useGetCompetitionStatsQuery,
   useGetCompetitionQuery,
   useRemoveLeagueTeamMutation,
   type LeagueTeam,
@@ -16,6 +17,7 @@ import {
 import { type Draw, type Fixture } from "../../../lib/tournament";
 import MatchCentreModal from "./match/MatchCentreModal";
 import FixturesList from "./match/FixturesList";
+import StatsPanel from "./StatsPanel";
 import AdvancePhaseModal from "../tournament/AdvancePhaseModal";
 import CompetitionPhases from "./CompetitionPhases";
 import CompetitionFormModal from "./CompetitionFormModal";
@@ -47,6 +49,7 @@ const ChampionsLeagueManage = () => {
   const { data: matches = [] } = useGetCompetitionMatchesQuery(id!, {
     skip: !id,
   });
+  const { data: stats } = useGetCompetitionStatsQuery(id!, { skip: !id });
   const [advancingDraw, setAdvancingDraw] = useState<Draw | null>(null);
 
   const openMatch = useCallback(
@@ -392,6 +395,14 @@ const ChampionsLeagueManage = () => {
               })
             }
           />
+        </section>
+      )}
+
+      {/* Stats */}
+      {stats && stats.matchesPlayed + stats.goldenBoot.length > 0 && (
+        <section className="p-4 sm:p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+          <h2 className="text-lg font-bold mb-4">Stats</h2>
+          <StatsPanel stats={stats} />
         </section>
       )}
 

@@ -553,6 +553,14 @@ export const advanceDraw = async (req: Request, res: Response) => {
         scores,
         scoring,
         kind,
+        source.competition
+          ? {
+              rules: "scl",
+              fairPlay: Object.fromEntries(
+                (source.fairPlay as unknown as Map<string, number>) ?? [],
+              ),
+            }
+          : {},
       ),
     }));
 

@@ -63,6 +63,11 @@ export interface IMatch extends Document {
   shootout: IShootoutKick[];
   /** Team that forfeited (§9.6): recorded as a 3–0 win for the opponent. */
   forfeitedBy?: mongoose.Types.ObjectId | null;
+  /** Starting goalkeepers from the match sheet (§8.3), for the Golden Glove. */
+  goalkeepers?: {
+    home?: mongoose.Types.ObjectId | null;
+    away?: mongoose.Types.ObjectId | null;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -102,6 +107,10 @@ const MatchSchema = new Schema<IMatch>(
     events: { type: [EventSchema], default: [] },
     shootout: { type: [KickSchema], default: [] },
     forfeitedBy: { type: Schema.Types.ObjectId, ref: "Team", default: null },
+    goalkeepers: {
+      home: { type: Schema.Types.ObjectId, ref: "Player", default: null },
+      away: { type: Schema.Types.ObjectId, ref: "Player", default: null },
+    },
   },
   { timestamps: true },
 );

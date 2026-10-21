@@ -29,6 +29,9 @@ export interface IDraw extends Document {
   directQualifiers?: mongoose.Types.ObjectId[];
   matchResults?: Record<string, string>; // matchId -> teamId (winner) | "DRAW"
   matchScores?: Record<string, string>; // matchId -> score (e.g. "2 - 1")
+  // Champions League: fair play points per team in this phase (§10.3),
+  // kept up to date by the match centre.
+  fairPlay?: Record<string, number>;
   createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
 }
@@ -96,6 +99,7 @@ const DrawSchema: Schema = new Schema(
       of: String,
       default: {},
     },
+    fairPlay: { type: Map, of: Number, default: undefined },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
