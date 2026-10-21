@@ -140,6 +140,12 @@ export const updateMatchSchema = z.object({
   venue: z.string().trim().max(120).optional(),
   status: z.enum(["scheduled", "live", "finished"]).optional(),
   forfeitedBy: objectId.nullable().optional(),
+  goalkeepers: z
+    .object({
+      home: objectId.nullable().optional(),
+      away: objectId.nullable().optional(),
+    })
+    .optional(),
 });
 
 export const matchEventSchema = z.object({

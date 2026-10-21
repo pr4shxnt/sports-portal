@@ -257,6 +257,49 @@ const MatchCentre = ({
         </button>
       </div>
 
+      {/* Starting goalkeepers (match sheet, §8.3) — for the Golden Glove */}
+      <div className="grid sm:grid-cols-2 gap-2">
+        {(["home", "away"] as const).map((side) => {
+          const team = side === "home" ? home : away;
+          const squad = detail.players.filter((p) => p.team === team._id);
+          const keepers = squad.filter((p) => p.position === "GK");
+          const value =
+            match.goalkeepers?.[side] ??
+            (keepers.length === 1 ? keepers[0]._id : "");
+          return (
+            <label
+              key={side}
+              className="text-xs font-bold text-zinc-600 dark:text-zinc-300"
+            >
+              {team.name} goalkeeper
+              <select
+                value={value ?? ""}
+                disabled={saving}
+                onChange={(e) =>
+                  run({
+                    update: {
+                      goalkeepers: { [side]: e.target.value || null },
+                    },
+                  })
+                }
+                className={`${field} mt-1`}
+              >
+                <option value="">Not recorded</option>
+                {[...keepers, ...squad.filter((p) => p.position !== "GK")].map(
+                  (p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.shirtNumber != null ? `#${p.shirtNumber} ` : ""}
+                      {p.name}
+                      {p.position === "GK" ? " (GK)" : ""}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+          );
+        })}
+      </div>
+
       {/* Add event */}
       {!finished && !match.forfeitedBy && (
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3 space-y-3">

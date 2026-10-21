@@ -6,11 +6,13 @@ import {
   useGetPublicCompetitionQuery,
   useGetPublicMatchQuery,
   useGetPublicMatchesQuery,
+  useGetPublicStatsQuery,
   useGetPublicCompetitionsQuery,
 } from "../store/api";
 import CompetitionPhases from "../components/auth_client/champions/CompetitionPhases";
 import PlayerAvatar from "../components/auth_client/champions/PlayerAvatar";
 import FixturesList from "../components/auth_client/champions/match/FixturesList";
+import StatsPanel from "../components/auth_client/champions/StatsPanel";
 import MatchTimeline from "../components/auth_client/champions/match/MatchTimeline";
 import {
   STATUS_LABEL,
@@ -169,6 +171,9 @@ const CompetitionView = ({ slug }: { slug: string }) => {
   const { data: matches = [] } = useGetPublicMatchesQuery(slug, {
     pollingInterval: 60_000,
   });
+  const { data: stats } = useGetPublicStatsQuery(slug, {
+    pollingInterval: 120_000,
+  });
   const openFixture = useCallback(
     (drawId: string, fixture: Fixture) => {
       const match = matches.find(
@@ -256,6 +261,13 @@ const CompetitionView = ({ slug }: { slug: string }) => {
         <p className="text-xs text-zinc-500 mb-6">
           The league starts once registration closes. Fixtures will appear here.
         </p>
+      )}
+
+      {stats && stats.matchesPlayed + stats.goldenBoot.length > 0 && (
+        <section className="mt-12">
+          <h2 className="text-lg font-black mb-4">Stats</h2>
+          <StatsPanel stats={stats} />
+        </section>
       )}
 
       <section className={draws.length ? "mt-12" : ""}>

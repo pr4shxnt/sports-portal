@@ -13,6 +13,16 @@ import {
   suspendedIn,
   suspensions,
 } from "../utils/matchRules.js";
+import {
+  LP_VALUES,
+  StatsMatch,
+  fairPlayByTeam,
+  fairPlayTable,
+  goldenBoot,
+  goldenGlove,
+  leaguePoints,
+  playerCards,
+} from "../utils/stats.js";
 
 class HttpError extends Error {
   constructor(
@@ -104,6 +114,16 @@ const syncDraw = async (match: IMatch, draw: IDraw) => {
   const result = match.status === "finished" ? resultOf(match) : null;
   if (result) results.set(match.matchId, result);
   else results.delete(match.matchId);
+
+  // Fair play is the last table tie-breaker (§10.3): keep it per phase.
+  const inPhase = await Match.find({ draw: draw._id }).lean();
+  draw.fairPlay = new Map(
+    Object.entries(
+      fairPlayByTeam(
+        inPhase.map((m) => (m._id.equals(match._id) ? match : m)) as any,
+      ),
+    ),
+  ) as any;
 
   await draw.save();
 };
@@ -227,11 +247,12 @@ export const getMatch = handle(async (req, res) => {
 // @desc    Schedule, status and forfeit
 // @route   PATCH /api/competitions/:id/matches/:matchDocId
 export const updateMatch = handle(async (req, res) => {
-  const { kickoff, venue, status, forfeitedBy } = req.body as {
+  const { kickoff, venue, status, forfeitedBy, goalkeepers } = req.body as {
     kickoff?: string | null;
     venue?: string;
     status?: MatchStatus;
     forfeitedBy?: string | null;
+    goalkeepers?: { home?: string | null; away?: string | null };
   };
   const match = await findMatch(req.params.id, req.params.matchDocId);
 
@@ -239,6 +260,14 @@ export const updateMatch = handle(async (req, res) => {
   if (kickoff !== undefined)
     match.kickoff = kickoff ? new Date(kickoff) : undefined;
   if (venue !== undefined) match.venue = venue;
+  if (goalkeepers) {
+    for (const side of ["home", "away"] as const) {
+      const gk = goalkeepers[side];
+      if (gk === undefined) continue;
+      await ensurePlayerOf(gk, match[side]);
+      match.set(`goalkeepers.${side}`, gk || null);
+    }
+  }
 
   const touchesResult = status !== undefined || forfeitedBy !== undefined;
   if (touchesResult) {
@@ -422,4 +451,41 @@ export const getPublicMatch = handle(async (req, res) => {
   const competition = await publicCompetition(req.params.slug);
   const match = await findMatch(String(competition._id), req.params.matchDocId);
   res.json(await detail(match, PUBLIC_PLAYER));
+});
+
+/* ───────────────────────────── Stats ───────────────────────────── */
+
+const statsFor = async (competitionId: unknown) => {
+  const [matches, players, teams] = await Promise.all([
+    Match.find({ competition: competitionId }).lean(),
+    Player.find({ competition: competitionId }).select(PUBLIC_PLAYER).lean(),
+    Team.find({ competition: competitionId }).select("name").lean(),
+  ]);
+  const all = matches as unknown as StatsMatch[];
+  const teamIds = teams.map((t) => String(t._id));
+  return {
+    teams,
+    players,
+    goldenBoot: goldenBoot(all),
+    goldenGlove: goldenGlove(all, players as any),
+    fairPlay: fairPlayTable(all, teamIds),
+    cards: playerCards(all),
+    suspensions: suspensions(all).filter((s) => s.remaining > 0),
+    leaguePoints: leaguePoints(all, teamIds),
+    lpValues: LP_VALUES,
+    matchesPlayed: all.filter((m) => m.status === "finished").length,
+  };
+};
+
+// @desc    Season stats: Golden Boot/Glove, fair play, cards, League Points
+// @route   GET /api/competitions/:id/stats
+export const getStats = handle(async (req, res) => {
+  await ensureCompetition(req.params.id);
+  res.json(await statsFor(req.params.id));
+});
+
+// @route   GET /api/competitions/public/:slug/stats
+export const getPublicStats = handle(async (req, res) => {
+  const competition = await publicCompetition(req.params.slug);
+  res.json(await statsFor(competition._id));
 });

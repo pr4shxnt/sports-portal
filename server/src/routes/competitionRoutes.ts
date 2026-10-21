@@ -19,6 +19,8 @@ import {
   addEvent,
   getMatch,
   getPublicMatch,
+  getPublicStats,
+  getStats,
   listMatches,
   listPublicMatches,
   openMatch,
@@ -46,6 +48,7 @@ router.get("/public", listPublic);
 router.get("/public/:slug", getPublic);
 router.get("/public/:slug/matches", listPublicMatches);
 router.get("/public/:slug/matches/:matchDocId", getPublicMatch);
+router.get("/public/:slug/stats", getPublicStats);
 
 // Everything else is admin-only.
 router.use(protect, authorize(UserRole.ADMIN));
@@ -64,6 +67,7 @@ router.put("/:id/teams/:teamId", validateBody(leagueTeamSchema), updateTeam);
 router.delete("/:id/teams/:teamId", removeTeam);
 
 // Match centre
+router.get("/:id/stats", getStats);
 router.get("/:id/matches", listMatches);
 router.post("/:id/matches/open", validateBody(openMatchSchema), openMatch);
 router.get("/:id/matches/:matchDocId", getMatch);
