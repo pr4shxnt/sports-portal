@@ -195,6 +195,14 @@ const ChampionsLeagueManage = () => {
             >
               Public page ↗
             </a>
+            {!isSetup && (
+              <Link
+                to={`/dashboard/champions-league/${competition._id}/market`}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                Transfer market →
+              </Link>
+            )}
             <button
               onClick={() => setEditingDetails(true)}
               className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors"

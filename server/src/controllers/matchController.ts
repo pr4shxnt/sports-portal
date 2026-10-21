@@ -4,9 +4,11 @@ import Competition from "../models/Competition.js";
 import Draw, { IDraw } from "../models/Draw.js";
 import Match, { IMatch, MatchStatus } from "../models/Match.js";
 import Player from "../models/Player.js";
+import Sanction from "../models/Sanction.js";
 import Team from "../models/Team.js";
 import {
   isSecondYellow,
+  sanctionSuspensions,
   needsShootout,
   resultOf,
   scoreString,
@@ -136,18 +138,42 @@ const loadForEdit = async (req: Request) => {
   return { match, draw };
 };
 
+/** Red-card bans (§13.2) plus Sports Club match bans (§17.6). */
+const allSuspensions = async (competitionId: unknown, matches?: any[]) => {
+  const [all, bans, players] = await Promise.all([
+    matches ?? Match.find({ competition: competitionId }).lean(),
+    Sanction.find({ competition: competitionId, kind: "match_ban" }).lean(),
+    Player.find({ competition: competitionId }).select("team").lean(),
+  ]);
+  const teamOf = new Map(players.map((p) => [String(p._id), String(p.team)]));
+  return {
+    cards: suspensions(all as any),
+    sanctions: sanctionSuspensions(bans as any, all as any, teamOf),
+  };
+};
+
 /** Match with names, both squads and who is suspended for it. */
 const detail = async (match: IMatch, playerFields: string) => {
+  // Players named in this match's events stay resolvable after transfers.
+  const involved = [...match.events, ...match.shootout]
+    .map((e) => e.player)
+    .filter(Boolean);
   const [teams, players, all] = await Promise.all([
     Team.find({ _id: { $in: [match.home, match.away] } })
       .select("name")
       .lean(),
-    Player.find({ team: { $in: [match.home, match.away] } })
+    Player.find({
+      $or: [
+        { team: { $in: [match.home, match.away] } },
+        { _id: { $in: involved } },
+      ],
+    })
       .select(playerFields)
       .sort({ order: 1 })
       .lean(),
     Match.find({ competition: match.competition }).lean(),
   ]);
+  const bans = await allSuspensions(match.competition, all);
   const draw = await Draw.findById(match.draw).select("stage").lean();
   return {
     match,
@@ -155,7 +181,10 @@ const detail = async (match: IMatch, playerFields: string) => {
     home: teams.find((t) => same(t._id, match.home)),
     away: teams.find((t) => same(t._id, match.away)),
     players,
-    suspended: suspendedIn(String(match._id), suspensions(all as any)),
+    suspended: suspendedIn(String(match._id), [
+      ...bans.cards,
+      ...bans.sanctions,
+    ]),
     score: scoreString(match),
     needsShootout: needsShootout(match),
     result: resultOf(match),
@@ -463,6 +492,7 @@ const statsFor = async (competitionId: unknown) => {
   ]);
   const all = matches as unknown as StatsMatch[];
   const teamIds = teams.map((t) => String(t._id));
+  const bans = await allSuspensions(competitionId, matches);
   return {
     teams,
     players,
@@ -470,8 +500,10 @@ const statsFor = async (competitionId: unknown) => {
     goldenGlove: goldenGlove(all, players as any),
     fairPlay: fairPlayTable(all, teamIds),
     cards: playerCards(all),
-    suspensions: suspensions(all).filter((s) => s.remaining > 0),
-    leaguePoints: leaguePoints(all, teamIds),
+    suspensions: [...bans.cards, ...bans.sanctions].filter(
+      (s) => s.remaining > 0,
+    ),
+    leaguePoints: leaguePoints(all, teamIds, bans.sanctions),
     lpValues: LP_VALUES,
     matchesPlayed: all.filter((m) => m.status === "finished").length,
   };
